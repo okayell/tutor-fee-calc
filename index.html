@@ -1,0 +1,5726 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <script>window.TUTORING_STATIC_ONLY = true;</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>家教學費與薪資自動結算工具 · Google Calendar Sync</title>
+  <meta name="description" content="連結 Google 行事曆自動抓取學生上課日期，自訂每位學生鐘點費與家庭合併規則，分月自動結算學費明細與每月家教薪資總表，支援一鍵匯出 Excel (.xlsx)。" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗓️</text></svg>" />
+  <style>
+/* ==========================================================================
+   家教學費與薪資自動結算工具 — 樣式表 (css/style.css)
+   清爽淺色專業帳務風格 + 完美還原 Google Sheets 學費明細配色
+   ========================================================================== */
+
+:root {
+  --bg-page: #f5f7fb;
+  --bg-card: #ffffff;
+  --bg-soft: #eef2ff;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text-main: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --success: #059669;
+  --success-hover: #047857;
+  --warn: #d97706;
+  --danger: #dc2626;
+
+  /* 對應截圖 Google Sheet 經典底色 */
+  --sheet-purple: #dcd3ea;
+  --sheet-gray: #d9d9d9;
+  --sheet-yellow: #fff2cc;
+  --sheet-blue: #d0e2f7;
+  --sheet-border: #334155;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 6px 20px rgba(15, 23, 42, 0.08);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.text-center { text-align: center; }
+.text-muted { color: var(--text-muted); }
+.text-ok { color: var(--success) !important; font-weight: 600; }
+.text-warn { color: var(--warn) !important; font-weight: 600; }
+.text-danger { color: var(--danger) !important; }
+.nowrap { white-space: nowrap; }
+
+/* --- 頂部導覽列 --- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar-inner {
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.brand-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.brand-subtitle {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  color: var(--text-secondary);
+  transition: background 0.15s;
+}
+
+.sync-badge:hover {
+  background: #f1f5f9;
+}
+
+.sync-badge .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.sync-badge.connected {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+.sync-badge.connected .dot { background: #10b981; }
+
+.sync-badge.partial {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+.sync-badge.partial .dot { background: #f59e0b; }
+
+/* --- 按鈕系統 --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #ffffff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.btn-success {
+  background: var(--success);
+  color: #ffffff;
+}
+.btn-success:hover:not(:disabled) {
+  background: var(--success-hover);
+}
+
+.btn-outline {
+  background: #ffffff;
+  border-color: var(--border-strong);
+  color: var(--text-main);
+}
+.btn-outline:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.btn-soft {
+  background: var(--bg-soft);
+  color: var(--primary);
+  border-color: #c7d2fe;
+}
+.btn-soft:hover:not(:disabled) {
+  background: #e0e7ff;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: var(--text-main);
+}
+
+.btn-danger {
+  background: #fef2f2;
+  color: var(--danger);
+  border-color: #fecaca;
+}
+.btn-danger:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.btn-lg { padding: 10px 18px; font-size: 14.5px; }
+.btn-sm { padding: 6px 11px; font-size: 12.5px; }
+.btn-xs { padding: 4px 9px; font-size: 12px; }
+
+.btn-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+.btn-icon:hover {
+  background: #f1f5f9;
+  color: var(--text-main);
+}
+
+/* --- 主版面容器 --- */
+.container {
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* --- 提示橫幅與歡迎引導卡 --- */
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+}
+
+.banner-demo {
+  background: linear-gradient(90deg, #eef2ff, #f5f3ff);
+  border: 1px solid #c7d2fe;
+  color: #312e81;
+}
+
+.welcome-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--shadow-sm);
+}
+
+.welcome-main h2 {
+  margin: 0 0 8px;
+  font-size: 21px;
+}
+
+.welcome-main p {
+  margin: 0 0 18px;
+  color: var(--text-secondary);
+  max-width: 780px;
+}
+
+.welcome-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.step-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.step-pill span {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.welcome-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* --- 月份選擇列 --- */
+.month-bar {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  box-shadow: var(--shadow-sm);
+}
+
+.month-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.current-month-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.current-month-label {
+  font-size: 18px;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.month-picker-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+}
+
+.last-sync-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+.quick-month-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ym-tab {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  position: relative;
+}
+
+.ym-tab:hover {
+  background: #eef2ff;
+  color: var(--primary);
+}
+
+.ym-tab.has-data::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.ym-tab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+.ym-tab.active::after {
+  background: #a7f3d0;
+}
+
+/* --- KPI 指標卡 --- */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.kpi-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-sm);
+}
+
+.kpi-highlight {
+  background: linear-gradient(135deg, #eef2ff 0%, #ffffff 100%);
+  border-color: #c7d2fe;
+}
+
+.kpi-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.kpi-value {
+  margin-top: 4px;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-highlight .kpi-value {
+  color: var(--primary);
+}
+
+.kpi-sub {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* --- 未歸戶行程偵測面板 --- */
+.unmatched-panel {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+}
+
+.unmatched-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.unmatched-header h3 {
+  margin: 0;
+  font-size: 15.5px;
+  color: #92400e;
+}
+
+.unmatched-header p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #78350f;
+}
+
+.unmatched-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.unmatched-item {
+  background: #ffffff;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.unmatched-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 240px;
+}
+
+.unmatched-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inline-name-input {
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  font-size: 13.5px;
+  font-weight: 700;
+  width: 135px;
+}
+
+.pill-count {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 600;
+}
+
+.unmatched-raw {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.unmatched-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* --- 視圖切換頁籤列 --- */
+.view-tabs-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.view-tab {
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.view-tab:hover {
+  background: #e2e8f0;
+  color: var(--text-main);
+}
+
+.view-tab.active {
+  background: var(--bg-card);
+  border-color: var(--border-strong);
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.view-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* --- 雙欄工作區（左：薪資總表，右：單一學生明細） --- */
+.workspace-split {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  box-shadow: var(--shadow-sm);
+}
+
+.panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.panel-header h2 {
+  margin: 0;
+  font-size: 16.5px;
+}
+
+.panel-desc {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* --- 左欄：每月家教薪資收入總表（對應截圖 2） --- */
+.sheet-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.sheet-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet-table th {
+  background: #f1f5f9;
+  color: var(--text-secondary);
+  font-weight: 700;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border-strong);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.summary-sheet-table .col-idx { width: 38px; text-align: center; }
+.summary-sheet-table .col-sessions { width: 58px; text-align: center; }
+.summary-sheet-table .col-rate-quick { width: 138px; }
+.summary-sheet-table .col-total { width: 105px; text-align: right; }
+.summary-sheet-table .col-paid { width: 52px; text-align: center; }
+
+.summary-sheet-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.summary-row {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.summary-row:hover {
+  background: #f8fafc;
+}
+.summary-row.selected {
+  background: #eef2ff;
+}
+.summary-row.selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+.summary-row.is-paid .sum-amount-cell {
+  color: var(--success);
+}
+
+.sum-name-main {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.sum-breakdown {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.sum-amount-cell {
+  text-align: right;
+  font-weight: 700;
+  font-size: 14.5px;
+}
+
+.quick-rate-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.quick-rate-input,
+.inline-rate-input {
+  width: 84px;
+  padding: 4px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.quick-rate-input:focus,
+.inline-rate-input:focus {
+  outline: 2px solid #818cf8;
+  border-color: var(--primary);
+}
+
+.rate-missing {
+  background: #fffbeb;
+  border-color: #f59e0b;
+}
+
+.unit-tag {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.multi-rate-hint {
+  font-size: 12px;
+  color: var(--primary);
+  background: #eef2ff;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.summary-grand-row td {
+  background: var(--sheet-yellow);
+  border-top: 2px solid #94a3b8;
+  padding: 10px;
+  font-weight: 800;
+}
+
+.grand-label {
+  text-align: center;
+  font-size: 14.5px;
+}
+
+.grand-amount {
+  text-align: right;
+  font-size: 16.5px;
+  color: #111827;
+}
+
+/* --- 右欄：完美還原截圖 1 的學生學費明細試算表 --- */
+.card-select {
+  padding: 7px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: #f8fafc;
+  color: var(--text-main);
+  max-width: 100%;
+}
+
+.detail-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.stu-rate-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.stu-rate-inline-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 7px 10px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+}
+
+.stu-rate-name {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.spreadsheet-frame {
+  overflow-x: auto;
+}
+
+.classic-detail-sheet {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1.5px solid var(--sheet-border);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.classic-detail-sheet th,
+.classic-detail-sheet td {
+  border: 1px solid var(--sheet-border);
+  padding: 7px 10px;
+}
+
+.classic-purple-header {
+  background: var(--sheet-purple);
+  font-size: 15px;
+  font-weight: 800;
+  text-align: center;
+  color: #111827;
+}
+
+.classic-purple-subheader {
+  background: var(--sheet-purple);
+  font-size: 14.5px;
+  font-weight: 800;
+  text-align: center;
+  color: #111827;
+}
+
+.classic-gray-cols th {
+  background: var(--sheet-gray);
+  font-weight: 700;
+  text-align: center;
+  color: #111827;
+}
+
+.sheet-date-cell {
+  background: #e5e7eb;
+  text-align: center;
+  width: 34%;
+}
+
+.date-main {
+  font-weight: 600;
+  color: #111827;
+}
+
+.date-sub {
+  font-size: 11px;
+  color: #4b5563;
+}
+
+.sheet-amount-cell {
+  width: 28%;
+  background: #ffffff;
+  padding: 4px 8px !important;
+}
+
+.detail-session-row.has-override .sheet-amount-cell {
+  background: #eff6ff;
+}
+
+.cell-amount-wrap,
+.cell-note-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sheet-cell-input {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 4px 6px;
+  font-size: 14px;
+  font-family: inherit;
+  border-radius: 4px;
+}
+
+.sheet-cell-input:hover {
+  border-color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.sheet-cell-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
+}
+
+.amount-input,
+.extra-amount-input {
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.extra-label-input {
+  text-align: center;
+  font-weight: 600;
+}
+
+.sheet-extra-label-cell {
+  background: var(--sheet-gray);
+  padding: 4px 6px !important;
+}
+
+.sheet-extra-amount-cell,
+.sheet-extra-note-cell {
+  background: var(--sheet-yellow);
+  padding: 4px 8px !important;
+}
+
+.btn-reset-override,
+.btn-exclude-session,
+.btn-remove-extra {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.btn-reset-override {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.btn-exclude-session:hover,
+.btn-remove-extra:hover {
+  background: #fee2e2;
+  color: var(--danger);
+}
+
+.classic-blue-total td {
+  background: var(--sheet-blue);
+  font-weight: 800;
+  text-align: center;
+  color: #111827;
+}
+
+.classic-total-num {
+  font-size: 16px;
+}
+
+.classic-total-meta {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155 !important;
+}
+
+.excluded-Hint {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.chip-restore-session {
+  border: 1px dashed #94a3b8;
+  background: #f8fafc;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11.5px;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.chip-restore-session:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* --- 全部明細展開網格 --- */
+.all-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(430px, 1fr));
+  gap: 18px;
+}
+
+.detail-grid-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.card-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--bg-soft);
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
+/* --- 學生設定管理表格 --- */
+.students-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.students-config-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.students-config-table th {
+  background: #f8fafc;
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-strong);
+  font-weight: 700;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.students-config-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.sub-hint {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.kw-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.kw-tag {
+  background: #f1f5f9;
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.inline-group-input {
+  width: 135px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  font-size: 13px;
+}
+
+.select-xs {
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  font-size: 12.5px;
+  background: #ffffff;
+  font-family: inherit;
+}
+
+.ignored-box {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+}
+
+.ignored-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ignored-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: #e2e8f0;
+  border-radius: 999px;
+}
+
+.ignored-chip button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.empty-cell,
+.empty-detail-box,
+.empty-session-cell {
+  padding: 28px 16px !important;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13.5px;
+}
+
+/* --- Modals --- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-card {
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-md);
+}
+
+.modal-lg {
+  max-width: 680px;
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.modal-close {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.modal-close:hover { background: #f1f5f9; }
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.setting-block-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 15px;
+}
+
+.badge-step {
+  background: var(--bg-soft);
+  color: var(--primary);
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.badge-alt {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: var(--text-main);
+}
+
+.field-hint {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.text-input,
+.select-input {
+  width: 100%;
+  padding: 8px 11px;
+  font-size: 13.5px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+}
+
+.text-input:focus,
+.select-input:focus {
+  outline: 2px solid #818cf8;
+  border-color: var(--primary);
+}
+
+.input-with-btn {
+  display: flex;
+  gap: 8px;
+}
+
+.oauth-guide {
+  margin-top: 12px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 12.5px;
+}
+
+.oauth-guide summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.guide-steps {
+  margin: 10px 0 4px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.origin-code {
+  display: inline-block;
+  margin: 4px 6px 2px 0;
+  padding: 3px 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.calendar-select-section {
+  margin-top: 16px;
+  padding: 14px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: var(--radius-md);
+}
+
+.cal-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13.5px;
+  margin-bottom: 10px;
+}
+
+.calendar-checklist {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px;
+  max-height: 210px;
+  overflow-y: auto;
+}
+
+.cal-check-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.cal-check-item.checked {
+  border-color: var(--primary);
+  background: #eef2ff;
+  font-weight: 600;
+}
+
+.cal-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cal-primary-tag {
+  font-size: 11px;
+  background: #e2e8f0;
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-left: auto;
+}
+
+.cal-sync-footer {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ics-upload-row {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 20px 0;
+}
+
+.divider-sm {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 8px 0;
+}
+
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.backup-btns {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.file-btn-label {
+  cursor: pointer;
+}
+
+.danger-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* --- Toast --- */
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  background: #1e293b;
+  color: #ffffff;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: all 0.22s ease;
+  max-width: 400px;
+}
+
+.toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast-success { background: #065f46; }
+.toast-error { background: #991b1b; }
+
+/* --- 響應式支援 --- */
+@media (max-width: 1024px) {
+  .workspace-split {
+    grid-template-columns: 1fr;
+  }
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-row-2 {
+    grid-template-columns: 1fr;
+  }
+  .all-details-grid {
+    grid-template-columns: 1fr;
+  }
+  .input-with-btn {
+    flex-direction: column;
+  }
+}
+
+/* ==========================================================================
+   版本徽章 (ver-badge) & Release Notes / 打包發布中心彈跳視窗
+   ========================================================================== */
+
+.brand-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ver-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  transition: all 0.15s ease;
+}
+
+.ver-badge:hover {
+  background: #e0e7ff;
+  border-color: #818cf8;
+  transform: translateY(-1px);
+}
+
+.ver-badge.has-changes {
+  background: #fffbeb;
+  border-color: #fcd34d;
+  color: #b45309;
+}
+
+.ver-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f59e0b;
+  display: inline-block;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.22);
+}
+
+.rel-modal-card {
+  max-width: 780px;
+}
+
+.rel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ver-pill-lg {
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rel-status-box {
+  border: 1px solid var(--border-strong);
+  background: #f8fafc;
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.rel-status-box.rel-clean {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+  font-size: 13.5px;
+}
+
+.rel-status-box.rel-dirty {
+  background: #fffbeb;
+  border-color: #fcd34d;
+}
+
+.rel-box-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.rel-dl-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rel-muted {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.rel-ai-advice {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #ffffff;
+  border-left: 3px solid var(--primary);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-main);
+}
+
+.rel-diff-table-wrap {
+  margin: 10px 0;
+  max-height: 185px;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.rel-diff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.rel-diff-table th {
+  background: #f1f5f9;
+  padding: 7px 10px;
+  text-align: left;
+  font-weight: 700;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.rel-diff-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.rel-plus { color: #16a34a; }
+.rel-minus { color: #dc2626; }
+
+.rel-bump-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.rel-bump-opt {
+  background: #ffffff;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  cursor: pointer;
+  display: block;
+  transition: all 0.12s;
+}
+
+.rel-bump-opt input {
+  display: none;
+}
+
+.rel-bump-opt.on {
+  border-color: var(--primary);
+  background: #eef2ff;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.12);
+}
+
+.rbo-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.rbo-sub {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.rel-form {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+
+.rel-pub-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.rel-sec-title {
+  margin: 16px 0 10px;
+  font-size: 15px;
+  color: var(--text-main);
+}
+
+.rel-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rel-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  background: #ffffff;
+}
+
+.rel-item.latest {
+  border-color: #c7d2fe;
+  background: linear-gradient(180deg, #f8faff 0%, #ffffff 100%);
+}
+
+.ri-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ri-ver {
+  font-weight: 800;
+  font-size: 14.5px;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ri-date {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.ri-title {
+  margin: 8px 0 6px;
+  font-size: 15px;
+  color: var(--text-main);
+}
+
+.ri-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+}
+
+.ri-list li {
+  margin-bottom: 4px;
+}
+
+.rel-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.rel-chip-ok { background: #dcfce7; color: #166534; }
+.rel-chip-info { background: #e0e7ff; color: #3730a3; }
+.rel-chip-warn { background: #fef3c7; color: #92400e; }
+.rel-chip-bad { background: #fee2e2; color: #991b1b; }
+
+@media (max-width: 640px) {
+  .rel-bump-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+</style>
+</head>
+<body>
+  <!-- 頂部導覽列 -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-icon" aria-hidden="true">🗓️</span>
+        <div>
+          <div class="brand-title-row">
+            <h1 class="brand-title">家教學費與薪資結算工具</h1>
+            <button id="verBadgeBtn" type="button" class="ver-badge" title="查看 Release Notes 與打包下載">
+              <span>v1.0.0</span>
+            </button>
+          </div>
+          <p class="brand-subtitle">Google 行事曆自動帶入上課日期 · 分月計算學生明細與薪資總表</p>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <div id="syncStatusBadge" class="sync-badge disconnected" title="點擊管理 Google 日曆連結">
+          <span class="dot"></span>
+          <span id="syncStatusText">尚未連結 Google 日曆</span>
+        </div>
+
+        <button id="btnGoogleSignIn" type="button" class="btn btn-primary">
+          <svg class="google-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path fill="currentColor" d="M12.24 10.285V14.4h6.806c-.275 1.765-2.056 5.174-6.806 5.174-4.095 0-7.439-3.389-7.439-7.574s3.345-7.574 7.439-7.574c2.33 0 3.891.989 4.785 1.849l3.254-3.138C18.189 1.186 15.479 0 12.24 0c-6.635 0-12 5.365-12 12s5.365 12 12 12c6.926 0 11.52-4.869 11.52-11.726 0-.788-.085-1.39-.189-1.989H12.24z"/>
+          </svg>
+          <span id="btnGoogleSignInLabel">Google 帳號一鍵同步</span>
+        </button>
+
+        <button id="btnOpenSyncModal" type="button" class="btn btn-outline" title="選擇子日曆、設定 Client ID 或匯入 .ics 日曆檔">
+          ⚙️ 日曆來源設定
+        </button>
+
+        <button id="btnExportXlsx" type="button" class="btn btn-success" title="匯出包含「每月薪資總表」與「各學生明細分頁」的 Excel 檔">
+          📥 匯出本月 Excel (.xlsx)
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Demo 模式提示橫幅 -->
+    <div id="demoBanner" class="banner banner-demo hidden">
+      <div class="banner-text">
+        <strong>✨ 目前正在檢視「範例家教資料」</strong>：你可以自由切換月份、修改鐘點費、測試家庭合併與下載 Excel (.xlsx)！準備使用真實行程時，點右側即可清空並連結你的 Google 日曆。
+      </div>
+      <div class="banner-actions">
+        <button id="btnExitDemo" type="button" class="btn btn-sm btn-outline">清空範例資料</button>
+      </div>
+    </div>
+
+    <!-- 首次使用引導卡（當沒有行程也沒有學生時顯示） -->
+    <section id="welcomeCard" class="welcome-card hidden">
+      <div class="welcome-main">
+        <h2>👋 開始自動計算每個月的家教學費與總收入</h2>
+        <p>只要連結你的 Google 日曆（例如勾選「<strong>個人家教</strong>」子日曆），系統就會自動抓出當月每位學生的上課日期；你只需要填入每位學生的鐘點費，就能自動算出各別學費明細與全體薪資總表！</p>
+        <div class="welcome-steps">
+          <div class="step-pill"><span>1</span> 連結 Google 帳號並勾選家教子日曆</div>
+          <div class="step-pill"><span>2</span> 自動偵測學生與上課日期，自行填入鐘點費</div>
+          <div class="step-pill"><span>3</span> 自動分月產出「各別明細」＋「薪資總表」並匯出 Excel</div>
+        </div>
+        <div class="welcome-buttons">
+          <button id="btnWelcomeSync" type="button" class="btn btn-primary btn-lg">🔗 連結 Google 日曆開始同步</button>
+          <button id="btnWelcomeIcs" type="button" class="btn btn-outline btn-lg">📂 或匯入 .ics 日曆檔</button>
+          <button id="btnLoadDemo" type="button" class="btn btn-ghost btn-lg">✨ 先載入範例資料試玩看看</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 月份切換列（支援上下月 + 類似 Google Sheet 底部 YYYYMM 快速切換分頁） -->
+    <section class="month-bar">
+      <div class="month-selector">
+        <button id="btnPrevMonth" type="button" class="btn-icon" title="上個月" aria-label="上個月">◀</button>
+        <div class="current-month-wrap">
+          <input id="monthPickerInput" type="month" class="month-picker-input" aria-label="選擇年月" />
+          <span id="currentMonthLabel" class="current-month-label">2026年 11月</span>
+        </div>
+        <button id="btnNextMonth" type="button" class="btn-icon" title="下個月" aria-label="下個月">▶</button>
+        <button id="btnSyncCurrentMonth" type="button" class="btn btn-sm btn-soft" title="從 Google 日曆重新抓取本月最新行程">
+          🔄 重新同步本月行程
+        </button>
+        <span id="lastSyncHint" class="last-sync-hint"></span>
+      </div>
+
+      <div id="quickMonthTabs" class="quick-month-tabs" aria-label="快速切換月份"></div>
+    </section>
+
+    <!-- 當月統計摘要指標卡 -->
+    <section class="kpi-grid">
+      <div class="kpi-card kpi-highlight">
+        <div class="kpi-label">本月家教薪資總額</div>
+        <div id="kpiGrandTotal" class="kpi-value">NT$ 0</div>
+        <div id="kpiPaidHint" class="kpi-sub">課程鐘點 + 書費／其他合計</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">總表結算筆數（學生／家庭）</div>
+        <div id="kpiGroupCount" class="kpi-value">0 組</div>
+        <div id="kpiStudentSub" class="kpi-sub">共 0 位學生</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">本月總上課堂數</div>
+        <div id="kpiSessionCount" class="kpi-value">0 堂</div>
+        <div id="kpiHoursSub" class="kpi-sub">合計授課 0 小時</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">日曆行程歸戶狀態</div>
+        <div id="kpiMatchStatus" class="kpi-value">0 筆行程</div>
+        <div id="kpiUnmatchedSub" class="kpi-sub">尚無未歸戶行程</div>
+      </div>
+    </section>
+
+    <!-- 智慧偵測：尚未歸戶的日曆行程提示區 -->
+    <section id="unmatchedPanel" class="unmatched-panel hidden">
+      <div class="unmatched-header">
+        <div>
+          <h3>✨ 在本月日曆偵測到 <span id="unmatchedCountBadge">0</span> 組尚未設定的課程名稱</h3>
+          <p>系統已自動過濾表情符號與樂器名稱！你可以直接填入鐘點費一鍵建立學生，或將小名歸入現有學生：</p>
+        </div>
+        <div class="unmatched-bulk-actions">
+          <button id="btnAutoCreateAll" type="button" class="btn btn-primary btn-sm">➕ 將勾選項目全部建立為學生</button>
+        </div>
+      </div>
+      <div id="unmatchedList" class="unmatched-list"></div>
+    </section>
+
+    <!-- 主內容頁籤切換 -->
+    <div class="view-tabs-bar">
+      <div class="view-tabs" role="tablist">
+        <button type="button" class="view-tab active" data-tab="overview" role="tab">
+          📊 每月家教薪資總表 ＋ 個別明細並排
+        </button>
+        <button type="button" class="view-tab" data-tab="details" role="tab">
+          🧾 個別學生／家庭學費明細 (<span id="tabDetailCount">0</span>)
+        </button>
+        <button type="button" class="view-tab" data-tab="students" role="tab">
+          👩‍🏫 學生名單、鐘點費與家庭合併設定 (<span id="tabStudentCount">0</span>)
+        </button>
+      </div>
+
+      <div class="view-toolbar">
+        <button id="btnAddStudentQuick" type="button" class="btn btn-sm btn-outline">➕ 新增學生規則</button>
+        <button id="btnBackupModal" type="button" class="btn btn-sm btn-ghost" title="匯出或還原學生名單與鐘點費設定檔">💾 備份 / 還原設定</button>
+      </div>
+    </div>
+
+    <!-- 視圖 1：雙欄總覽（左：每月薪資收入總表，右：點擊任一學生即時查看/編輯他的當月學費明細表） -->
+    <section id="viewOverview" class="workspace-split">
+      <!-- 左欄：每月家教薪資收入總表（對應截圖 2） -->
+      <div class="panel summary-panel">
+        <div class="panel-header">
+          <div>
+            <h2 id="summaryTableTitle">每月家教薪資收入</h2>
+            <p class="panel-desc">自動彙整各學生／家庭當月總額（點擊任一列可於右側檢視或編輯明細）</p>
+          </div>
+          <button id="btnCopySummaryText" type="button" class="btn btn-xs btn-ghost" title="複製當月薪資總表文字">📋 複製總表</button>
+        </div>
+
+        <div class="sheet-table-wrap">
+          <table class="sheet-table summary-sheet-table">
+            <thead>
+              <tr>
+                <th class="col-idx">#</th>
+                <th class="col-name">學生 / 家庭</th>
+                <th class="col-sessions">堂數</th>
+                <th class="col-rate-quick">鐘點費設定</th>
+                <th class="col-total">本月總額</th>
+                <th class="col-paid" title="紀錄家長是否已繳費">已收</th>
+              </tr>
+            </thead>
+            <tbody id="summaryTableBody"></tbody>
+            <tfoot>
+              <tr class="summary-grand-row">
+                <td></td>
+                <td class="grand-label">合計</td>
+                <td id="summaryTotalSessionsCell" class="text-center">0</td>
+                <td></td>
+                <td id="summaryGrandTotalCell" class="grand-amount">0</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- 右欄：個別學生當月費用明細表（完全對應截圖 1） -->
+      <div class="panel detail-preview-panel">
+        <div class="panel-header">
+          <div class="detail-selector-row">
+            <label for="activeCardSelect" class="sr-only">選擇學生明細</label>
+            <select id="activeCardSelect" class="card-select"></select>
+          </div>
+          <div class="detail-card-actions">
+            <button id="btnAddManualSession" type="button" class="btn btn-xs btn-outline" title="手動補登一堂不在日曆上的課">➕ 補登課堂</button>
+            <button id="btnAddExtraRow" type="button" class="btn btn-xs btn-outline" title="新增一列書費或其他費用">➕ 新增書費列</button>
+            <button id="btnCopyCardText" type="button" class="btn btn-xs btn-soft" title="複製此學生的費用明細文字，可直接貼到 LINE 傳給家長">📋 複製給家長</button>
+          </div>
+        </div>
+
+        <div id="activeDetailContainer" class="detail-sheet-holder"></div>
+      </div>
+    </section>
+
+    <!-- 視圖 2：展開全部學生的當月明細網格 -->
+    <section id="viewDetails" class="all-details-grid hidden"></section>
+
+    <!-- 視圖 3：學生名單、鐘點費、關鍵字與家庭合併完整管理表 -->
+    <section id="viewStudents" class="panel students-panel hidden">
+      <div class="panel-header">
+        <div>
+          <h2>👩‍🏫 學生名單、鐘點費與家庭合併規則</h2>
+          <p class="panel-desc">
+            鐘點費與對應規則只需設定一次，之後切換任何月份都會自動套用！<br/>
+            💡 <strong>家庭合併說明</strong>：若多位學生填寫相同的「<strong>家庭／總表合併名稱</strong>」（例如 <code>燦燦、伯寧</code>），可自由選擇「各自獨立明細、只在總表合併」或「連同明細表也合併在同一張」。
+          </p>
+        </div>
+        <div class="panel-header-btns">
+          <button id="btnAddStudentTop" type="button" class="btn btn-primary btn-sm">➕ 新增學生</button>
+        </div>
+      </div>
+
+      <div class="students-table-wrap">
+        <table class="students-config-table">
+          <thead>
+            <tr>
+              <th>明細顯示學生名</th>
+              <th>課程名稱（明細標題用）</th>
+              <th>日曆比對關鍵字（逗號分隔）</th>
+              <th>計費方式</th>
+              <th>鐘點費 (NT$)</th>
+              <th>家庭／總表合併名稱（選填）</th>
+              <th>家庭明細呈現方式</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="studentsConfigBody"></tbody>
+        </table>
+      </div>
+
+      <div id="ignoredKeywordsBox" class="ignored-box hidden">
+        <span class="ignored-title">🙈 已忽略的非家教行程關鍵字：</span>
+        <div id="ignoredChips" class="ignored-chips"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal 1: Google 日曆連結設定 & 子日曆勾選 & .ics 匯入 -->
+  <div id="syncModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="syncModalTitle">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <h3 id="syncModalTitle">⚙️ Google 行事曆同步設定</h3>
+        <button type="button" class="modal-close" data-close-modal="syncModal" aria-label="關閉">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- 區塊 A：Google OAuth Client ID 與登入 -->
+        <div class="setting-block">
+          <div class="setting-block-title">
+            <span class="badge-step">方式 1（主推）</span>
+            <strong>Google 帳號一鍵登入同步（即時讀取子日曆）</strong>
+          </div>
+
+          <label class="field-label" for="inputGoogleClientId">
+            Google OAuth 2.0 用戶端 ID (Web Client ID)
+          </label>
+          <div class="input-with-btn">
+            <input
+              id="inputGoogleClientId"
+              type="text"
+              class="text-input"
+              placeholder="例如：1234567890-abcdefg.apps.googleusercontent.com"
+              autocomplete="off"
+            />
+            <button id="btnSaveAndLoginGoogle" type="button" class="btn btn-primary">儲存並登入 Google</button>
+          </div>
+          <p class="field-hint">
+            🔒 純前端安全連線：授權僅在你的瀏覽器與 Google 官方伺服器之間進行（唯讀權限 <code>calendar.readonly</code>），絕不會修改你的行事曆，也不會傳送到任何第三方主機。
+          </p>
+
+          <details class="oauth-guide">
+            <summary>📖 如何免費取得自己的 Google Client ID？（只需 2 分鐘，附目前網址一鍵複製）</summary>
+            <ol class="guide-steps">
+              <li>前往 <a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" rel="noopener noreferrer">Google Cloud Console - Google Calendar API</a>，建立新專案並點擊「<strong>啟用 (Enable)</strong>」。</li>
+              <li>左側選單點「<strong>OAuth 同意畫面 (OAuth consent screen)</strong>」→ 選擇外部 (External) → 填入任意應用程式名稱（如 <code>家教結算工具</code>），並在「<strong>測試使用者 (Test users)</strong>」加入你自己的 Gmail 信箱。</li>
+              <li>左側選單點「<strong>憑證 (Credentials)</strong>」→「<strong>＋建立憑證 → OAuth 用戶端 ID</strong>」→ 應用程式類型選「<strong>網頁應用程式 (Web application)</strong>」。</li>
+              <li>在「<strong>已授權的 JavaScript 來源 (Authorized JavaScript origins)</strong>」點擊新增 URI，貼上下方這個網址：<br/>
+                <code id="currentOriginCode" class="origin-code"></code>
+                <button id="btnCopyOrigin" type="button" class="btn btn-xs btn-outline">複製目前來源網址</button>
+              </li>
+              <li>建立後複製產生的 <code>xxxx.apps.googleusercontent.com</code> 貼回上方欄位，即可永久一鍵同步！（若你將此專案放到自己的 GitHub Pages，也可把該 Client ID 寫進 <code>js/config.js</code> 供自己隨時免填使用。）</li>
+            </ol>
+          </details>
+
+          <!-- 登入後顯示的子日曆選擇區 -->
+          <div id="calendarSelectSection" class="calendar-select-section hidden">
+            <div class="cal-section-header">
+              <strong>✅ 已連結 Google 帳號！請勾選要讀取的家教子日曆（例如：個人家教）：</strong>
+              <div class="cal-section-btns">
+                <button id="btnRefreshCalendars" type="button" class="btn btn-xs btn-outline">🔄 重新整理清單</button>
+                <button id="btnGoogleSignOut" type="button" class="btn btn-xs btn-ghost">登出</button>
+              </div>
+            </div>
+            <div id="calendarChecklist" class="calendar-checklist"></div>
+            <div class="cal-sync-footer">
+              <button id="btnSyncSelectedCalendars" type="button" class="btn btn-primary">📥 立即抓取所選日曆的本月行程</button>
+            </div>
+          </div>
+        </div>
+
+        <hr class="divider" />
+
+        <!-- 區塊 B：免設定 API 直接匯入 .ics 檔 -->
+        <div class="setting-block">
+          <div class="setting-block-title">
+            <span class="badge-step badge-alt">方式 2（免設定 API）</span>
+            <strong>直接匯入 Google 日曆 <code>.ics</code> 檔案</strong>
+          </div>
+          <p class="field-hint">
+            不想設定 Client ID？在 Google 日曆左側對著「個人家教」日曆點「<strong>設定與共用 → 匯出日曆</strong>」，將解壓縮後的 <code>.ics</code> 檔選取匯入，系統同樣會自動展開每週固定課程與請假調課紀錄！
+          </p>
+          <div class="ics-upload-row">
+            <input id="inputIcsFile" type="file" accept=".ics,text/calendar" class="file-input" />
+            <button id="btnTriggerDemoFromModal" type="button" class="btn btn-sm btn-ghost">✨ 或載入範例資料試玩</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: 新增 / 編輯學生設定 & 手動補課 & JSON 備份 -->
+  <div id="studentModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="studentModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="studentModalTitle">👩‍🏫 新增／編輯學生計費規則</h3>
+        <button type="button" class="modal-close" data-close-modal="studentModal" aria-label="關閉">✕</button>
+      </div>
+      <form id="studentForm" class="modal-body form-stack">
+        <input id="stuFormId" type="hidden" />
+        <div class="form-row-2">
+          <div>
+            <label class="field-label" for="stuFormName">明細表顯示學生姓名 *</label>
+            <input id="stuFormName" type="text" class="text-input" placeholder="例如：東真那" required />
+          </div>
+          <div>
+            <label class="field-label" for="stuFormCourse">課程名稱（選填，明細標題用）</label>
+            <input id="stuFormCourse" type="text" class="text-input" placeholder="例如：大提琴課、鋼琴課" />
+          </div>
+        </div>
+
+        <div>
+          <label class="field-label" for="stuFormKeywords">日曆行程比對關鍵字 *（多個請用逗號分隔）</label>
+          <input id="stuFormKeywords" type="text" class="text-input" placeholder="例如：東真那, 真那 或 CC, 熹熹" required />
+          <p class="field-hint">只要 Google 日曆活動標題包含其中任一關鍵字（例如「🎵東真那大提琴」），就會自動帶入上課日期。</p>
+        </div>
+
+        <div class="form-row-2">
+          <div>
+            <label class="field-label" for="stuFormPricingMode">鐘點費計算方式</label>
+            <select id="stuFormPricingMode" class="select-input">
+              <option value="per_session">每堂固定金額（預設）</option>
+              <option value="by_duration">依 60 分鐘費率 × 日曆時長換算</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="stuFormRate">鐘點費金額 (NT$) *</label>
+            <input id="stuFormRate" type="number" min="0" step="1" class="text-input" placeholder="例如：1000" required />
+          </div>
+        </div>
+
+        <hr class="divider-sm" />
+
+        <div class="form-row-2">
+          <div>
+            <label class="field-label" for="stuFormGroup">家庭／總表合併名稱（選填）</label>
+            <input id="stuFormGroup" type="text" class="text-input" placeholder="例如：燦燦、伯寧（同一家庭填相同名稱）" />
+          </div>
+          <div>
+            <label class="field-label" for="stuFormSummaryLabel">薪資總表簡稱（選填）</label>
+            <input id="stuFormSummaryLabel" type="text" class="text-input" placeholder="例如：真那（留空則用學生名或家庭名）" />
+          </div>
+        </div>
+
+        <div>
+          <label class="field-label" for="stuFormGroupMode">家庭合併時的明細呈現方式</label>
+          <select id="stuFormGroupMode" class="select-input">
+            <option value="separate_detail_merged_summary">各自獨立明細表，只在「每月薪資總表」合併加總</option>
+            <option value="merged_both">同一張家庭明細合併顯示，且「每月薪資總表」合併加總</option>
+          </select>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" data-close-modal="studentModal">取消</button>
+          <button type="submit" class="btn btn-primary">儲存學生設定</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 3: 備份與還原設定 (JSON) -->
+  <div id="backupModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="backupModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="backupModalTitle">💾 備份與還原資料</h3>
+        <button type="button" class="modal-close" data-close-modal="backupModal" aria-label="關閉">✕</button>
+      </div>
+      <div class="modal-body form-stack">
+        <p class="field-hint">
+          本工具所有學生名單、鐘點費與各月份微調紀錄皆儲存在你目前瀏覽器的本機空間（<code>localStorage</code>）。若要換電腦、換手機或定期備份，可匯出 <code>.json</code> 備份檔保存。
+        </p>
+        <div class="backup-btns">
+          <button id="btnDownloadBackup" type="button" class="btn btn-primary">⬇️ 下載設定與帳務備份 (.json)</button>
+          <label class="btn btn-outline file-btn-label">
+            ⬆️ 從備份檔還原 (.json)
+            <input id="inputRestoreBackup" type="file" accept=".json,application/json" hidden />
+          </label>
+        </div>
+        <hr class="divider-sm" />
+        <div class="danger-zone">
+          <span>清除本機所有快取與設定：</span>
+          <button id="btnResetAllData" type="button" class="btn btn-xs btn-danger">🗑️ 清空重設</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast 訊息提示 -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <script>
+/**
+ * 家教學費與薪資自動結算工具 — 全域設定檔
+ *
+ * 【給部署到 GitHub Pages 的擁有者】
+ * 如果你已經在 Google Cloud Console 建立好 OAuth 2.0 用戶端 ID (Web application)，
+ * 可以直接填在下方 DEFAULT_GOOGLE_CLIENT_ID 字串中（Client ID 是公開識別碼，不含密鑰，可安全放入前端）。
+ * 填好後，打開你 GitHub Pages 網址的使用者就不需要手動貼上 Client ID，直接點「Google 帳號一鍵登入」即可！
+ * 若留空，使用者也可以直接在網頁右上角「⚙️ Google 同步設定」貼上自己的 Client ID（會自動記在瀏覽器本機）。
+ */
+window.TUTORING_CALC_CONFIG = {
+  DEFAULT_GOOGLE_CLIENT_ID: '',
+  CALENDAR_SCOPE: 'https://www.googleapis.com/auth/calendar.readonly',
+  STORAGE_KEY: 'gcal_tutoring_calc_v1',
+  DEFAULT_EXCLUDE_KEYWORDS: ['請假', '停課', '取消'],
+  INSTRUMENT_SUFFIXES: [
+    '大提琴課', '小提琴課', '中提琴課', '鋼琴課', '長笛課', '吉他課', '音樂課', '家教課',
+    '大提琴', '小提琴', '中提琴', '鋼琴', '長笛', '吉他', '樂理', '伴奏',
+    'Cello', 'cello', 'Piano', 'piano', 'Violin', 'violin',
+    '小孩試上', '試上'
+  ]
+};
+
+</script>
+  <script>
+/* 家教學費與薪資結算工具 — releases.js (由 tools/release_mgr.py 自動產生)
+ * 版本徽章、Release Notes 歷史紀錄與本機「待發布變更偵測 / 1.x.x 智慧進位發布 & GitHub 打包下載中心」
+ */
+(function () {
+  'use strict';
+
+  const RELEASES_DATA = {
+  "current_version": "1.0.0",
+  "releases": [
+    {
+      "version": "1.0.0",
+      "date": "2026-11-02",
+      "bump": "major",
+      "title": "家教學費與薪資自動結算工具 v1.0.0 初版發布",
+      "highlights": [
+        "🔗 支援 Google 帳號一鍵登入同步（唯讀 calendar.readonly），可勾選「個人家教」等子日曆並自動展開每週固定課程與單次請假調課；亦支援直接匯入 .ics 日曆檔。",
+        "✨ 智慧偵測未歸戶行程：自動過濾音樂表情符號與樂器名稱，支援一鍵建立學生規則或將小名（如 CC）歸入現有學生。",
+        "💰 彈性鐘點費與分月微調：每位學生預設「每堂固定金額」，可切換「依 60 分鐘費率 × 日曆時長自動換算」，並支援單堂微調金額、新增書費／其他費用列與手動補登課堂。",
+        "👨‍👩‍👧‍👦 家庭合併雙模式：支援「各自獨立明細表、只在每月薪資總表合併加總」或「同一張家庭明細合併顯示」。",
+        "📥 內建零依賴 Excel (.xlsx) 匯出器：一鍵產出「每月家教薪資收入總表」與「各學生費用明細分頁」，完整保留紫底標題、鵝黃書費列、淺藍合計列與即時 =SUM() 及跨表公式。",
+        "🏷️ 標題列整合版號徽章（v1.x.x）、Release Notes 歷史紀錄與本機一鍵打包下載／發布中心。"
+      ],
+      "files_count": 10
+    }
+  ]
+};
+  window.TUTORING_RELEASES_DATA = RELEASES_DATA;
+
+  const BUMP_LABELS = {
+    major: { badge: 'Major 大改版', cls: 'rel-chip-bad' },
+    minor: { badge: 'Minor 功能擴充', cls: 'rel-chip-info' },
+    patch: { badge: 'Patch 細節修正', cls: 'rel-chip-ok' }
+  };
+
+  let cachedStatus = null;
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function isStaticEnv() {
+    const host = (typeof location !== 'undefined' && location.hostname) || '';
+    return !!(
+      window.TUTORING_STATIC_ONLY ||
+      (location.protocol !== 'http:' && location.protocol !== 'https:') ||
+      /\.github\.io$|\.pages\.dev$|\.netlify\.app$|\.vercel\.app$/i.test(host)
+    );
+  }
+
+  function notify(msg, type) {
+    const box = document.getElementById('toastContainer');
+    if (!box) return;
+    const el = document.createElement('div');
+    el.className = 'toast toast-' + (type || 'info');
+    el.textContent = msg;
+    box.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('visible'));
+    setTimeout(() => {
+      el.classList.remove('visible');
+      setTimeout(() => el.remove(), 260);
+    }, 3400);
+  }
+
+  function updateBadgeUI(status) {
+    const btn = document.getElementById('verBadgeBtn');
+    if (!btn) return;
+    const ver = (status && status.current_version) || RELEASES_DATA.current_version || '1.0.0';
+    const localMode = !!(status && !status.static) && !isStaticEnv();
+    const hasChanges = localMode && !!(status && status.has_changes);
+    btn.className = 'ver-badge' + (hasChanges ? ' has-changes' : '');
+    btn.innerHTML = '<span>v' + esc(ver) + '</span>' + (hasChanges ? '<i class="ver-dot" title="有未發布的修改檔案"></i>' : '');
+    if (!localMode) {
+      btn.title = '版本 v' + ver + '（點擊查看 Release Notes）';
+    } else {
+      btn.title = hasChanges
+        ? '目前版本 v' + ver + '（偵測到 ' + status.changed_files.length + ' 個檔案已修改，點擊查看 Release Notes、下載打包檔或發布新版本）'
+        : '目前版本 v' + ver + '（點擊查看 Release Notes 與下載 GitHub Pages 打包檔）';
+    }
+  }
+
+  async function fetchReleaseStatus() {
+    if (isStaticEnv()) return null;
+    try {
+      const res = await fetch('api/release_status', { cache: 'no-store' });
+      if (!res.ok) return null;
+      const ct = (res.headers && res.headers.get && res.headers.get('content-type')) || '';
+      if (!ct.includes('application/json')) return null;
+      cachedStatus = await res.json();
+      if (cachedStatus && cachedStatus.current_version) {
+        RELEASES_DATA.current_version = cachedStatus.current_version;
+        RELEASES_DATA.releases = cachedStatus.releases || RELEASES_DATA.releases;
+      }
+      updateBadgeUI(cachedStatus);
+      return cachedStatus;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function renderReleaseModal(status) {
+    let bd = document.getElementById('relModal');
+    if (!bd) {
+      bd = document.createElement('div');
+      bd.id = 'relModal';
+      bd.className = 'modal-backdrop';
+      bd.addEventListener('click', (e) => {
+        if (e.target === bd) bd.classList.add('hidden');
+      });
+      document.body.appendChild(bd);
+    }
+
+    const ver = (status && status.current_version) || RELEASES_DATA.current_version || '1.0.0';
+    const releases = (status && status.releases) || RELEASES_DATA.releases || [];
+    const isLocalServer = !!(status && !status.static) && !isStaticEnv();
+    const hasChanges = isLocalServer && !!(status && status.has_changes);
+
+    let localSectionHtml = '';
+    if (isLocalServer) {
+      const exportBoxHtml =
+        '<div class="rel-status-box">' +
+          '<div class="rel-box-head">' +
+            '<div>' +
+              '<strong>📦 GitHub Pages 靜態版打包下載</strong>' +
+              '<div class="rel-muted">一鍵下載最新單一 <code>index.html</code> 或完整開源專案 <code>.zip</code>，直接拖進 GitHub 即可上線（公開版僅顯示純淨 Release Notes）。</div>' +
+            '</div>' +
+            '<div class="rel-dl-btns">' +
+              '<a class="btn btn-sm btn-primary" href="download/index.html" download="index.html">⬇️ 直接下載最新 index.html</a>' +
+              '<a class="btn btn-sm btn-outline" href="download/zip" download="google-calendar-tutoring-calculator.zip">📦 下載完整專案包 (.zip)</a>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+
+      if (!hasChanges) {
+        localSectionHtml = exportBoxHtml +
+          '<div class="rel-status-box rel-clean">' +
+            '<div>✅ 目前工作目錄所有程式碼皆與最新發布版 <strong>v' + esc(ver) + '</strong> 同步，無待發布修改。</div>' +
+          '</div>';
+      } else {
+        const rec = status.recommended_bump || 'patch';
+        const nv = status.next_versions || {};
+        const filesRows = (status.changed_files || []).map((f) =>
+          '<tr>' +
+            '<td><span class="rel-chip rel-chip-info">' + esc(f.cat) + '</span></td>' +
+            '<td><code>' + esc(f.path) + '</code><div class="rel-muted">' + esc(f.desc) + '</div></td>' +
+            '<td><span class="rel-chip rel-chip-warn">' + esc(f.status_zh) + '</span></td>' +
+            '<td class="nowrap"><b><span class="rel-plus">+' + f.added_lines + '</span> / <span class="rel-minus">-' + f.removed_lines + '</span> 行</b></td>' +
+          '</tr>'
+        ).join('');
+
+        const descMap = {
+          patch: '進第 3 位數（1.x.X）：微調樣式、文字修正、小 Bug 修復',
+          minor: '進第 2 位數（1.X.0）：新增功能、計費規則或匯出體驗擴充',
+          major: '進第 1 位數（X.0.0）：全站架構大改版、跨模組大規模升級'
+        };
+
+        const bumpOpts = ['patch', 'minor', 'major'].map((b) => {
+          const isRec = b === rec;
+          const targetVer = nv[b] || '';
+          return '<label class="rel-bump-opt' + (isRec ? ' on' : '') + '">' +
+            '<input type="radio" name="relBumpType" value="' + b + '"' + (isRec ? ' checked' : '') + ' />' +
+            '<div class="rbo-top">' +
+              '<strong>v' + esc(targetVer) + '</strong>' +
+              (isRec ? '<span class="rel-chip rel-chip-ok">🤖 系統推薦</span>' : '') +
+            '</div>' +
+            '<div class="rbo-sub">' + esc(descMap[b]) + '</div>' +
+          '</label>';
+        }).join('');
+
+        localSectionHtml = exportBoxHtml +
+          '<div class="rel-status-box rel-dirty">' +
+            '<div class="rel-box-head">' +
+              '<div><span class="rel-chip rel-chip-warn">⚠️ 偵測到未發布變更</span> <strong>共有 ' + status.changed_files.length + ' 個檔案自 v' + esc(ver) + ' 後有修改</strong></div>' +
+              '<span class="rel-muted">總變動：<b class="rel-plus">+' + status.total_added + '</b> / <b class="rel-minus">-' + status.total_removed + '</b> 行</span>' +
+            '</div>' +
+            '<div class="rel-ai-advice">🧭 <strong>智慧版號進位判斷（1.x.x）：</strong>' + esc(status.recommendation_reason) + '</div>' +
+            '<div class="rel-diff-table-wrap">' +
+              '<table class="rel-diff-table"><thead><tr><th>分類</th><th>修改檔案與說明</th><th>狀態</th><th>行數變動</th></tr></thead><tbody>' + filesRows + '</tbody></table>' +
+            '</div>' +
+            '<div class="rel-bump-grid">' + bumpOpts + '</div>' +
+            '<div class="rel-form">' +
+              '<label class="field-label">新版本標題（Release Title）</label>' +
+              '<input type="text" id="relTitleInp" class="text-input" value="' + esc(status.suggested_title || '') + '" placeholder="簡述本次更新重點" />' +
+              '<label class="field-label" style="margin-top:10px">更新細項（Release Notes，每行一條，已自動預填）</label>' +
+              '<textarea id="relHighlightsInp" class="text-input" rows="3">' + esc((status.suggested_highlights || []).join('\n')) + '</textarea>' +
+              '<div class="rel-pub-actions">' +
+                '<button type="button" class="btn btn-primary" id="publishRelBtn">🚀 發布新版本 v<span id="publishVerTxt">' + esc(nv[rec] || '') + '</span> 並同步重新打包</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+      }
+    }
+
+    const historyHtml = releases.map((r, idx) => {
+      const bInfo = BUMP_LABELS[r.bump] || BUMP_LABELS.minor;
+      const items = (r.highlights || []).map((h) => '<li>' + esc(h) + '</li>').join('');
+      return '<div class="rel-item' + (idx === 0 ? ' latest' : '') + '">' +
+        '<div class="ri-head">' +
+          '<span class="ri-ver">v' + esc(r.version) + '</span>' +
+          (idx === 0 ? '<span class="rel-chip rel-chip-ok">目前版本</span>' : '') +
+          '<span class="rel-chip ' + bInfo.cls + '">' + esc(bInfo.badge) + '</span>' +
+          '<span class="ri-date">📅 ' + esc(r.date) + (r.files_count ? ' · 涵蓋 ' + r.files_count + ' 個檔案' : '') + '</span>' +
+        '</div>' +
+        '<h4 class="ri-title">' + esc(r.title) + '</h4>' +
+        '<ul class="ri-list">' + items + '</ul>' +
+      '</div>';
+    }).join('');
+
+    const modalTitle = isLocalServer
+      ? '🚀 家教學費與薪資結算工具 · 版本紀錄與發布中心'
+      : '📜 家教學費與薪資結算工具 · Release Notes';
+    const modalSub = isLocalServer
+      ? '<p class="field-hint">遵循語意化版本 <code>MAJOR.MINOR.PATCH (1.x.x)</code>：大改版進第 1 位、新功能擴充進第 2 位、細節微調與修正進第 3 位。</p>'
+      : '';
+
+    bd.innerHTML =
+      '<div class="modal-card rel-modal-card" role="dialog" aria-modal="true" aria-label="Release Notes">' +
+        '<div class="modal-header">' +
+          '<div>' +
+            '<div class="rel-title-row">' +
+              '<h3>' + modalTitle + '</h3>' +
+              '<span class="ver-pill-lg">v' + esc(ver) + '</span>' +
+            '</div>' +
+            modalSub +
+          '</div>' +
+          '<button type="button" class="modal-close" id="closeRelModalBtn" aria-label="關閉">✕</button>' +
+        '</div>' +
+        '<div class="modal-body">' +
+          localSectionHtml +
+          '<h4 class="rel-sec-title"' + (!isLocalServer ? ' style="margin-top:0"' : '') + '>📜 Release Notes 歷史版本紀錄</h4>' +
+          '<div class="rel-timeline">' + historyHtml + '</div>' +
+        '</div>' +
+      '</div>';
+
+    bd.classList.remove('hidden');
+    bd.querySelector('#closeRelModalBtn').addEventListener('click', () => bd.classList.add('hidden'));
+
+    bd.querySelectorAll('[name="relBumpType"]').forEach((radio) => {
+      radio.addEventListener('change', () => {
+        bd.querySelectorAll('.rel-bump-opt').forEach((el) => el.classList.remove('on'));
+        const card = radio.closest('.rel-bump-opt');
+        if (card) card.classList.add('on');
+        const vTxt = bd.querySelector('#publishVerTxt');
+        if (vTxt && status && status.next_versions) {
+          vTxt.textContent = status.next_versions[radio.value] || '';
+        }
+      });
+    });
+
+    const pubBtn = bd.querySelector('#publishRelBtn');
+    if (pubBtn) {
+      pubBtn.addEventListener('click', async () => {
+        const checked = bd.querySelector('[name="relBumpType"]:checked');
+        const bumpType = checked ? checked.value : (status.recommended_bump || 'patch');
+        const titleVal = (bd.querySelector('#relTitleInp') || {}).value || '';
+        const hlRaw = (bd.querySelector('#relHighlightsInp') || {}).value || '';
+        const highlights = hlRaw.split('\n').map((s) => s.trim()).filter(Boolean);
+        pubBtn.disabled = true;
+        pubBtn.textContent = '⏳ 正在發布並重新打包 index.html 與 ZIP ...';
+        try {
+          const res = await fetch('api/release_publish', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bump: bumpType, title: titleVal, highlights })
+          });
+          const out = await res.json();
+          if (out && out.ok) {
+            cachedStatus = out.status;
+            RELEASES_DATA.current_version = out.new_version;
+            RELEASES_DATA.releases = out.status.releases;
+            updateBadgeUI(cachedStatus);
+            renderReleaseModal(cachedStatus);
+            notify('🎉 已發布 v' + out.new_version + ' 並同步更新 GitHub Pages 打包檔！', 'success');
+          } else {
+            pubBtn.disabled = false;
+            pubBtn.textContent = '🚀 重新嘗試發布';
+            notify('發布失敗：' + ((out && out.error) || '未知錯誤'), 'error');
+          }
+        } catch (_) {
+          pubBtn.disabled = false;
+          pubBtn.textContent = '🚀 重新嘗試發布';
+          notify('無法連線至本機伺服器', 'error');
+        }
+      });
+    }
+  }
+
+  async function openReleaseModal() {
+    const st = await fetchReleaseStatus();
+    renderReleaseModal(st || cachedStatus);
+  }
+
+  function initVersionBadge() {
+    const btn = document.getElementById('verBadgeBtn');
+    if (btn && !btn.dataset.bound) {
+      btn.dataset.bound = '1';
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openReleaseModal();
+      });
+    }
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const bd = document.getElementById('relModal');
+        if (bd) bd.classList.add('hidden');
+      }
+    });
+    updateBadgeUI(cachedStatus);
+    fetchReleaseStatus().then(() => {
+      if (location.search.includes('releases=1') || location.hash === '#/releases') {
+        openReleaseModal();
+      }
+    });
+  }
+
+  window.openTutoringReleaseModal = openReleaseModal;
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initVersionBadge);
+  } else {
+    initVersionBadge();
+  }
+})();
+
+</script>
+  <script>
+/**
+ * 純前端零依賴 OpenXML (.xlsx) 產生器
+ * 支援多分頁、儲存格底色、框線、合併儲存格、欄寬、數字格式與即時 Excel 公式 (=SUM / 跨分頁參照)
+ * 相容於 Microsoft Excel、Google 試算表 (Google Sheets)、macOS Numbers 與 LibreOffice Calc
+ */
+(function () {
+  'use strict';
+
+  // --- CRC32 表（ZIP 格式必備） ---
+  const CRC_TABLE = (function () {
+    const table = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let k = 0; k < 8; k++) {
+        c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      }
+      table[i] = c >>> 0;
+    }
+    return table;
+  })();
+
+  function crc32(bytes) {
+    let crc = 0xFFFFFFFF;
+    for (let i = 0; i < bytes.length; i++) {
+      crc = CRC_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  // --- 建立標準 ZIP 二進位檔 (Store mode, method=0) ---
+  function buildZip(files) {
+    const encoder = new TextEncoder();
+    const entries = files.map((f) => {
+      const nameBytes = encoder.encode(f.name);
+      const dataBytes = typeof f.content === 'string' ? encoder.encode(f.content) : f.content;
+      return {
+        nameBytes,
+        dataBytes,
+        crc: crc32(dataBytes),
+        offset: 0
+      };
+    });
+
+    let localSize = 0;
+    for (const e of entries) {
+      e.offset = localSize;
+      localSize += 30 + e.nameBytes.length + e.dataBytes.length;
+    }
+
+    let centralSize = 0;
+    for (const e of entries) {
+      centralSize += 46 + e.nameBytes.length;
+    }
+
+    const totalSize = localSize + centralSize + 22;
+    const out = new Uint8Array(totalSize);
+    const view = new DataView(out.buffer);
+    let pos = 0;
+
+    // DOS 時間標記 (2026-01-01 00:00:00)
+    const dosTime = 0x0000;
+    const dosDate = ((2026 - 1980) << 9) | (1 << 5) | 1;
+
+    for (const e of entries) {
+      view.setUint32(pos, 0x04034b50, true); // Local file header signature
+      view.setUint16(pos + 4, 20, true);     // Version needed to extract
+      view.setUint16(pos + 6, 0x0800, true); // UTF-8 filename flag
+      view.setUint16(pos + 8, 0, true);      // Compression method: 0 (stored)
+      view.setUint16(pos + 10, dosTime, true);
+      view.setUint16(pos + 12, dosDate, true);
+      view.setUint32(pos + 14, e.crc, true);
+      view.setUint32(pos + 18, e.dataBytes.length, true);
+      view.setUint32(pos + 22, e.dataBytes.length, true);
+      view.setUint16(pos + 26, e.nameBytes.length, true);
+      view.setUint16(pos + 28, 0, true);
+      pos += 30;
+      out.set(e.nameBytes, pos);
+      pos += e.nameBytes.length;
+      out.set(e.dataBytes, pos);
+      pos += e.dataBytes.length;
+    }
+
+    const centralOffset = pos;
+    for (const e of entries) {
+      view.setUint32(pos, 0x02014b50, true); // Central directory file header
+      view.setUint16(pos + 4, 20, true);     // Version made by
+      view.setUint16(pos + 6, 20, true);     // Version needed
+      view.setUint16(pos + 8, 0x0800, true); // UTF-8 flag
+      view.setUint16(pos + 10, 0, true);     // Compression method: 0
+      view.setUint16(pos + 12, dosTime, true);
+      view.setUint16(pos + 14, dosDate, true);
+      view.setUint32(pos + 16, e.crc, true);
+      view.setUint32(pos + 20, e.dataBytes.length, true);
+      view.setUint32(pos + 24, e.dataBytes.length, true);
+      view.setUint16(pos + 28, e.nameBytes.length, true);
+      view.setUint16(pos + 30, 0, true);     // Extra field length
+      view.setUint16(pos + 32, 0, true);     // Comment length
+      view.setUint16(pos + 34, 0, true);     // Disk number
+      view.setUint16(pos + 36, 0, true);     // Internal attrs
+      view.setUint32(pos + 38, 0, true);     // External attrs
+      view.setUint32(pos + 42, e.offset, true);
+      pos += 46;
+      out.set(e.nameBytes, pos);
+      pos += e.nameBytes.length;
+    }
+
+    // End of central directory record
+    view.setUint32(pos, 0x06054b50, true);
+    view.setUint16(pos + 4, 0, true);
+    view.setUint16(pos + 6, 0, true);
+    view.setUint16(pos + 8, entries.length, true);
+    view.setUint16(pos + 10, entries.length, true);
+    view.setUint32(pos + 12, centralSize, true);
+    view.setUint32(pos + 16, centralOffset, true);
+    view.setUint16(pos + 20, 0, true);
+
+    return out;
+  }
+
+  function escXml(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
+
+  function colLetter(colIdx0) {
+    let n = colIdx0 + 1;
+    let s = '';
+    while (n > 0) {
+      const m = (n - 1) % 26;
+      s = String.fromCharCode(65 + m) + s;
+      n = Math.floor((n - 1) / 26);
+    }
+    return s;
+  }
+
+  function cellRef(rowIdx0, colIdx0) {
+    return colLetter(colIdx0) + (rowIdx0 + 1);
+  }
+
+  function sanitizeSheetName(rawName, usedSet) {
+    let name = String(rawName || '工作表')
+      .replace(/[\[\]\*\/\\\?\:]/g, '_')
+      .trim();
+    if (!name) name = '工作表';
+    if (name.length > 28) name = name.slice(0, 28);
+    let candidate = name;
+    let seq = 2;
+    while (usedSet.has(candidate.toLowerCase())) {
+      const suffix = '_' + seq++;
+      candidate = name.slice(0, 31 - suffix.length) + suffix;
+    }
+    usedSet.add(candidate.toLowerCase());
+    return candidate;
+  }
+
+  function quoteSheetFormulaName(sheetName) {
+    return "'" + String(sheetName).replace(/'/g, "''") + "'";
+  }
+
+  /**
+   * 樣式索引對照 (styles.xml cellXfs):
+   * 0: 一般預設
+   * 1: 紫底粗體置中標題 (#DCD3EA, 框線) -> 明細表標題列
+   * 2: 灰底粗體置中表頭 (#D9D9D9, 框線) -> 欄位標題 / 書費標籤
+   * 3: 白底置中文字 (框線) -> 日期欄 / 序號欄
+   * 4: 白底置中金額 #,##0 (框線) -> 單堂鐘點費
+   * 5: 白底靠左文字 (框線) -> 備註欄 / 學生名稱
+   * 6: 鵝黃底置中金額 #,##0 (#FFF2CC, 框線) -> 書費/其他費用金額
+   * 7: 鵝黃底靠左文字 (#FFF2CC, 框線) -> 書費說明
+   * 8: 淺藍底粗體置中標籤 (#D0E2F7, 框線) -> 明細表「合計」文字
+   * 9: 淺藍底粗體置中金額 #,##0 (#D0E2F7, 框線) -> 明細表合計金額
+   * 10: 暖黃底粗體置中標籤 (#FFF2CC, 框線) -> 總表「合計」文字
+   * 11: 暖黃底粗體靠右金額 #,##0 (#FFF2CC, 框線) -> 總表合計金額
+   * 12: 白底靠右金額 #,##0 (框線) -> 總表各學生金額
+   */
+  const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <numFmts count="1">
+    <numFmt numFmtId="164" formatCode="#,##0"/>
+  </numFmts>
+  <fonts count="3">
+    <font><sz val="11"/><color rgb="FF1F2328"/><name val="Microsoft JhengHei"/></font>
+    <font><b/><sz val="11"/><color rgb="FF111827"/><name val="Microsoft JhengHei"/></font>
+    <font><b/><sz val="12"/><color rgb="FF111827"/><name val="Microsoft JhengHei"/></font>
+  </fonts>
+  <fills count="6">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFDCD3EA"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFD9D9D9"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFD0E2F7"/><bgColor indexed="64"/></patternFill></fill>
+  </fills>
+  <borders count="2">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border>
+      <left style="thin"><color rgb="FF333333"/></left>
+      <right style="thin"><color rgb="FF333333"/></right>
+      <top style="thin"><color rgb="FF333333"/></top>
+      <bottom style="thin"><color rgb="FF333333"/></bottom>
+      <diagonal/>
+    </border>
+  </borders>
+  <cellStyleXfs count="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+  </cellStyleXfs>
+  <cellXfs count="13">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>
+    <xf numFmtId="164" fontId="0" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="1" fillId="5" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="164" fontId="1" fillId="5" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="1" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="164" fontId="1" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
+    <xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
+  </cellXfs>
+</styleSheet>`;
+
+  function buildSheetXml(sheetDef) {
+    const colsXml = (sheetDef.colWidths || [18, 16, 26]).map((w, idx) =>
+      `<col min="${idx + 1}" max="${idx + 1}" width="${w}" customWidth="1"/>`
+    ).join('');
+
+    const rowsXml = sheetDef.rows.map((rowObj, rIdx) => {
+      const cells = Array.isArray(rowObj) ? rowObj : rowObj.cells;
+      const height = (rowObj && rowObj.height) || 24;
+      const cellsXml = cells.map((c, cIdx) => {
+        if (!c) return '';
+        const ref = cellRef(rIdx, cIdx);
+        const sAttr = c.style != null ? ` s="${c.style}"` : '';
+        if (c.formula) {
+          const cached = c.value != null && c.value !== '' ? `<v>${Number(c.value) || 0}</v>` : '';
+          return `<c r="${ref}"${sAttr}><f>${escXml(c.formula)}</f>${cached}</c>`;
+        }
+        if (c.type === 'n' && c.value !== '' && c.value != null && !Number.isNaN(Number(c.value))) {
+          return `<c r="${ref}"${sAttr}><v>${Number(c.value)}</v></c>`;
+        }
+        if (c.value === '' || c.value == null) {
+          return `<c r="${ref}"${sAttr}/>`;
+        }
+        return `<c r="${ref}" t="inlineStr"${sAttr}><is><t>${escXml(c.value)}</t></is></c>`;
+      }).join('');
+      return `<row r="${rIdx + 1}" ht="${height}" customHeight="1">${cellsXml}</row>`;
+    }).join('');
+
+    const merges = sheetDef.merges || [];
+    const mergeXml = merges.length > 0
+      ? `<mergeCells count="${merges.length}">${merges.map((m) => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>`
+      : '';
+
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <cols>${colsXml}</cols>
+  <sheetData>${rowsXml}</sheetData>
+  ${mergeXml}
+</worksheet>`;
+  }
+
+  function generateWorkbookBytes(sheets) {
+    const usedNames = new Set();
+    const normalized = sheets.map((s) => ({
+      ...s,
+      safeName: sanitizeSheetName(s.name, usedNames)
+    }));
+
+    const files = [];
+
+    files.push({
+      name: '[Content_Types].xml',
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+  ${normalized.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('\n  ')}
+</Types>`
+    });
+
+    files.push({
+      name: '_rels/.rels',
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`
+    });
+
+    files.push({
+      name: 'xl/workbook.xml',
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    ${normalized.map((s, i) => `<sheet name="${escXml(s.safeName)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('\n    ')}
+  </sheets>
+</workbook>`
+    });
+
+    files.push({
+      name: 'xl/_rels/workbook.xml.rels',
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  ${normalized.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('\n  ')}
+  <Relationship Id="rId${normalized.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`
+    });
+
+    files.push({
+      name: 'xl/styles.xml',
+      content: STYLES_XML
+    });
+
+    normalized.forEach((s, i) => {
+      files.push({
+        name: `xl/worksheets/sheet${i + 1}.xml`,
+        content: buildSheetXml(s)
+      });
+    });
+
+    return buildZip(files);
+  }
+
+  /**
+   * 將當月結算結果匯出成完整 .xlsx 檔案（含「每月家教薪資收入」總表 + 各學生／家庭費用明細分頁）
+   * @param {Object} report - 由 app.js buildMonthlyReport() 計算出的結構化報表
+   */
+  function exportMonthlyReportToXlsx(report) {
+    const { year, month, detailCards, summaryRows, grandTotal } = report;
+    const ymCode = `${year}${String(month).padStart(2, '0')}`;
+
+    // 先為每張明細卡分配唯一且合法的分頁名稱，以便總表可以直接用跨分頁公式參照！
+    const tempUsed = new Set();
+    const summaryTabName = sanitizeSheetName(`每月家教薪資收入_${ymCode}`, tempUsed);
+
+    const cardSheetMeta = new Map(); // cardId -> { sheetName, totalCellRef, totalAmount }
+    const detailSheets = detailCards.map((card) => {
+      const sheetName = sanitizeSheetName(card.tabTitle || card.studentLabel, tempUsed);
+      const isMergedMultiStudent = card.isMergedFamily && card.sessions.some((s) => s.studentName !== card.studentLabel);
+      const rows = [];
+      const merges = [];
+
+      // Row 1: 標題（如：2026年11月份大提琴課費用明細）
+      const colCount = isMergedMultiStudent ? 4 : 3;
+      const lastCol = colLetter(colCount - 1);
+
+      const makeTitleRow = (text) => {
+        const arr = [{ value: text, style: 1 }];
+        for (let i = 1; i < colCount; i++) arr.push({ value: '', style: 1 });
+        return { height: 26, cells: arr };
+      };
+
+      const courseHeader = card.courseTitle
+        ? `${year}年${month}月份${card.courseTitle}費用明細`
+        : `${year}年${month}月份課程費用明細`;
+      rows.push(makeTitleRow(courseHeader));
+      merges.push(`A1:${lastCol}1`);
+
+      // Row 2: 學生姓名
+      rows.push(makeTitleRow(`學生：${card.studentLabel}`));
+      merges.push(`A2:${lastCol}2`);
+
+      // Row 3: 欄位表頭
+      const rateHeader = card.rateHeaderLabel || '鐘點費/60m';
+      if (isMergedMultiStudent) {
+        rows.push({
+          height: 24,
+          cells: [
+            { value: '上課日期', style: 2 },
+            { value: '學生', style: 2 },
+            { value: rateHeader, style: 2 },
+            { value: '其他', style: 2 }
+          ]
+        });
+      } else {
+        rows.push({
+          height: 24,
+          cells: [
+            { value: '上課日期', style: 2 },
+            { value: rateHeader, style: 2 },
+            { value: '其他', style: 2 }
+          ]
+        });
+      }
+
+      const amountColIdx = isMergedMultiStudent ? 2 : 1;
+      const amountColLet = colLetter(amountColIdx);
+      const firstDataRow1 = 4; // Excel 1-based row index
+
+      // 上課日期列
+      if (card.sessions.length === 0) {
+        if (isMergedMultiStudent) {
+          rows.push({
+            height: 23,
+            cells: [
+              { value: '（本月無排課紀錄）', style: 3 },
+              { value: '', style: 3 },
+              { type: 'n', value: 0, style: 4 },
+              { value: '', style: 5 }
+            ]
+          });
+        } else {
+          rows.push({
+            height: 23,
+            cells: [
+              { value: '（本月無排課紀錄）', style: 3 },
+              { type: 'n', value: 0, style: 4 },
+              { value: '', style: 5 }
+            ]
+          });
+        }
+      } else {
+        card.sessions.forEach((sess) => {
+          if (isMergedMultiStudent) {
+            rows.push({
+              height: 23,
+              cells: [
+                { value: sess.dateShortLabel, style: 3 },
+                { value: sess.studentName, style: 3 },
+                { type: 'n', value: sess.amount, style: 4 },
+                { value: sess.note || '', style: 5 }
+              ]
+            });
+          } else {
+            rows.push({
+              height: 23,
+              cells: [
+                { value: sess.dateShortLabel, style: 3 },
+                { type: 'n', value: sess.amount, style: 4 },
+                { value: sess.note || '', style: 5 }
+              ]
+            });
+          }
+        });
+      }
+
+      // 書費 / 其他費用列（至少保留一列，與使用者截圖一致）
+      const extras = card.extras && card.extras.length > 0
+        ? card.extras
+        : [{ label: '書費/其他費用', amount: '', note: '' }];
+
+      extras.forEach((ex) => {
+        const hasAmt = ex.amount !== '' && ex.amount != null && Number(ex.amount) !== 0;
+        if (isMergedMultiStudent) {
+          rows.push({
+            height: 23,
+            cells: [
+              { value: ex.label || '書費/其他費用', style: 2 },
+              { value: '', style: 2 },
+              hasAmt ? { type: 'n', value: Number(ex.amount), style: 6 } : { value: '', style: 6 },
+              { value: ex.note || '', style: 7 }
+            ]
+          });
+          const r1 = rows.length;
+          merges.push(`A${r1}:B${r1}`);
+        } else {
+          rows.push({
+            height: 23,
+            cells: [
+              { value: ex.label || '書費/其他費用', style: 2 },
+              hasAmt ? { type: 'n', value: Number(ex.amount), style: 6 } : { value: '', style: 6 },
+              { value: ex.note || '', style: 7 }
+            ]
+          });
+        }
+      });
+
+      const lastDataRow1 = rows.length; // 1-based
+      const totalRow1 = lastDataRow1 + 1;
+      const sumFormula = `SUM(${amountColLet}${firstDataRow1}:${amountColLet}${lastDataRow1})`;
+
+      if (isMergedMultiStudent) {
+        rows.push({
+          height: 26,
+          cells: [
+            { value: '合計', style: 8 },
+            { value: '', style: 8 },
+            { formula: sumFormula, value: card.totalAmount, style: 9 },
+            { value: '', style: 8 }
+          ]
+        });
+        merges.push(`A${totalRow1}:B${totalRow1}`);
+      } else {
+        rows.push({
+          height: 26,
+          cells: [
+            { value: '合計', style: 8 },
+            { formula: sumFormula, value: card.totalAmount, style: 9 },
+            { value: '', style: 8 }
+          ]
+        });
+      }
+
+      cardSheetMeta.set(card.cardId, {
+        sheetName,
+        totalCellRef: `${amountColLet}${totalRow1}`,
+        totalAmount: card.totalAmount
+      });
+
+      return {
+        name: sheetName,
+        colWidths: isMergedMultiStudent ? [16, 14, 16, 26] : [18, 16, 26],
+        rows,
+        merges
+      };
+    });
+
+    // 建立第 1 張總表：每月家教薪資收入（比照截圖 2，並用公式自動參照各明細分頁合計！）
+    const summarySheetRows = [];
+    const summaryMerges = [];
+
+    summarySheetRows.push({
+      height: 28,
+      cells: [
+        { value: `${year}年${month}月份 每月家教薪資收入總表`, style: 1 },
+        { value: '', style: 1 },
+        { value: '', style: 1 },
+        { value: '', style: 1 },
+        { value: '', style: 1 }
+      ]
+    });
+    summaryMerges.push('A1:E1');
+
+    summarySheetRows.push({
+      height: 24,
+      cells: [
+        { value: '序號', style: 2 },
+        { value: '學生 / 家庭', style: 2 },
+        { value: '本月總額', style: 2 },
+        { value: '堂數', style: 2 },
+        { value: '備註 / 明細組成', style: 2 }
+      ]
+    });
+
+    const firstSumRow1 = 3;
+    if (summaryRows.length === 0) {
+      summarySheetRows.push({
+        height: 24,
+        cells: [
+          { type: 'n', value: 1, style: 3 },
+          { value: '（尚無學生資料）', style: 3 },
+          { type: 'n', value: 0, style: 12 },
+          { type: 'n', value: 0, style: 3 },
+          { value: '', style: 5 }
+        ]
+      });
+    } else {
+      summaryRows.forEach((sRow, idx) => {
+        // 找出此總表列對應的一或多張明細分頁，自動組合跨分頁公式！
+        const refs = (sRow.sourceCardIds || [])
+          .map((cid) => cardSheetMeta.get(cid))
+          .filter(Boolean)
+          .map((m) => `${quoteSheetFormulaName(m.sheetName)}!${m.totalCellRef}`);
+
+        const amountCell = refs.length > 0
+          ? { formula: refs.join('+'), value: sRow.totalAmount, style: 12 }
+          : { type: 'n', value: sRow.totalAmount, style: 12 };
+
+        summarySheetRows.push({
+          height: 24,
+          cells: [
+            { type: 'n', value: idx + 1, style: 3 },
+            { value: sRow.label, style: 3 },
+            amountCell,
+            { type: 'n', value: sRow.sessionCount, style: 3 },
+            { value: sRow.breakdownNote || '', style: 5 }
+          ]
+        });
+      });
+    }
+
+    const lastSumRow1 = summarySheetRows.length;
+    summarySheetRows.push({
+      height: 27,
+      cells: [
+        { value: '', style: 10 },
+        { value: '合計', style: 10 },
+        { formula: `SUM(C${firstSumRow1}:C${lastSumRow1})`, value: grandTotal, style: 11 },
+        { formula: `SUM(D${firstSumRow1}:D${lastSumRow1})`, value: report.totalSessions, style: 10 },
+        { value: '', style: 10 }
+      ]
+    });
+
+    const summarySheet = {
+      name: summaryTabName,
+      colWidths: [8, 22, 16, 10, 32],
+      rows: summarySheetRows,
+      merges: summaryMerges
+    };
+
+    const bytes = generateWorkbookBytes([summarySheet, ...detailSheets]);
+    const blob = new Blob([bytes], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+
+    const filename = `家教學費明細與薪資總表_${ymCode}.xlsx`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 500);
+    return filename;
+  }
+
+  window.XlsxExporter = {
+    generateWorkbookBytes,
+    exportMonthlyReportToXlsx
+  };
+})();
+
+</script>
+  <script>
+/**
+ * Google Calendar OAuth 2.0 一鍵登入與行程同步模組
+ * 使用官方 Google Identity Services (GIS) Token Model (純前端、無需後端伺服器)
+ * Scope: https://www.googleapis.com/auth/calendar.readonly (唯讀，絕不修改使用者日曆)
+ */
+(function () {
+  'use strict';
+
+  const SESSION_TOKEN_KEY = 'gcal_tutoring_oauth_token_v1';
+  const GIS_SRC = 'https://accounts.google.com/gsi/client';
+
+  let gisLoadPromise = null;
+
+  function ensureGisLoaded() {
+    if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+      return Promise.resolve();
+    }
+    if (gisLoadPromise) return gisLoadPromise;
+
+    gisLoadPromise = new Promise((resolve, reject) => {
+      const existing = document.querySelector(`script[src="${GIS_SRC}"]`);
+      if (existing) {
+        existing.addEventListener('load', () => resolve());
+        existing.addEventListener('error', () => reject(new Error('無法載入 Google 登入元件，請檢查網路連線或廣告阻擋器。')));
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = GIS_SRC;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => resolve();
+      script.onerror = () => {
+        gisLoadPromise = null;
+        reject(new Error('無法載入 Google 登入元件 (accounts.google.com)，請確認網路連線正常。'));
+      };
+      document.head.appendChild(script);
+    });
+    return gisLoadPromise;
+  }
+
+  function getSavedToken(clientId) {
+    try {
+      const raw = sessionStorage.getItem(SESSION_TOKEN_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed.accessToken || parsed.clientId !== clientId) return null;
+      // 預留 60 秒緩衝
+      if (Date.now() >= (parsed.expiresAt - 60000)) {
+        sessionStorage.removeItem(SESSION_TOKEN_KEY);
+        return null;
+      }
+      return parsed;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function saveToken(clientId, accessToken, expiresInSec, userEmail) {
+    const record = {
+      clientId,
+      accessToken,
+      expiresAt: Date.now() + (Number(expiresInSec) || 3599) * 1000,
+      userEmail: userEmail || ''
+    };
+    try {
+      sessionStorage.setItem(SESSION_TOKEN_KEY, JSON.stringify(record));
+    } catch (_) {}
+    return record;
+  }
+
+  function clearToken() {
+    try {
+      sessionStorage.removeItem(SESSION_TOKEN_KEY);
+    } catch (_) {}
+  }
+
+  /**
+   * 觸發 Google 帳號一鍵授權視窗，取得唯讀 Access Token
+   */
+  async function signInWithGoogle(clientId, forceAccountSelect = false) {
+    const trimmedId = String(clientId || '').trim();
+    if (!trimmedId) {
+      throw new Error('尚未設定 Google OAuth Client ID，請先在「Google 同步設定」填入 Client ID。');
+    }
+    await ensureGisLoaded();
+
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: trimmedId,
+        scope: window.TUTORING_CALC_CONFIG.CALENDAR_SCOPE,
+        callback: async (resp) => {
+          if (settled) return;
+          settled = true;
+          if (resp.error) {
+            reject(new Error(`Google 授權失敗：${resp.error_description || resp.error}`));
+            return;
+          }
+          const rec = saveToken(trimmedId, resp.access_token, resp.expires_in, '');
+          resolve(rec);
+        },
+        error_callback: (err) => {
+          if (settled) return;
+          settled = true;
+          const msg = err && err.type === 'popup_closed'
+            ? '已關閉 Google 登入視窗'
+            : `Google 登入視窗無法開啟 (${(err && err.type) || 'unknown'})，請確認瀏覽器未封鎖彈出視窗。`;
+          reject(new Error(msg));
+        }
+      });
+
+      tokenClient.requestAccessToken({
+        prompt: forceAccountSelect ? 'select_account' : ''
+      });
+    });
+  }
+
+  async function gcalFetchJson(url, accessToken) {
+    const resp = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/json'
+      }
+    });
+    if (resp.status === 401 || resp.status === 403) {
+      let detail = '';
+      try {
+        const errJson = await resp.json();
+        detail = (errJson.error && errJson.error.message) || '';
+      } catch (_) {}
+      if (resp.status === 401) clearToken();
+      throw new Error(
+        resp.status === 401
+          ? 'Google 登入授權已過期，請重新點擊「連結 Google 日曆」登入。'
+          : `Google Calendar API 拒絕存取 (403)：請確認該專案已啟用 Google Calendar API。${detail ? ' (' + detail + ')' : ''}`
+      );
+    }
+    if (!resp.ok) {
+      throw new Error(`讀取 Google 日曆失敗 (HTTP ${resp.status})`);
+    }
+    return resp.json();
+  }
+
+  /**
+   * 取得使用者帳號下所有子日曆清單（例如「個人家教」、主日曆等）
+   */
+  async function fetchCalendarList(accessToken) {
+    const url = 'https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader&maxResults=250';
+    const data = await gcalFetchJson(url, accessToken);
+    const items = Array.isArray(data.items) ? data.items : [];
+
+    // 智慧排序：名稱含「家教 / 課 / 教學 / 學生」優先排最上面，其次為主日曆，節假日排最後
+    const scoreCal = (c) => {
+      const name = String(c.summary || '');
+      if (/(家教|課|教學|音樂|鋼琴|提琴|學生|tutor|lesson)/i.test(name)) return 0;
+      if (c.primary) return 1;
+      if (String(c.id || '').includes('#holiday@') || String(c.id || '').includes('#contacts@')) return 9;
+      return 3;
+    };
+
+    return items
+      .filter((c) => !c.deleted)
+      .map((c) => ({
+        id: c.id,
+        summary: c.summaryOverride || c.summary || c.id,
+        primary: Boolean(c.primary),
+        backgroundColor: c.backgroundColor || '#6366f1',
+        accessRole: c.accessRole || 'reader'
+      }))
+      .sort((a, b) => scoreCal(a) - scoreCal(b) || a.summary.localeCompare(b.summary, 'zh-Hant'));
+  }
+
+  function format2(n) {
+    return String(n).padStart(2, '0');
+  }
+
+  /**
+   * 將單筆 Google Calendar API Event 正規化為本地時間結構
+   */
+  function normalizeApiEvent(ev, calendarId, calendarName) {
+    if (!ev || ev.status === 'cancelled') return null;
+    const title = String(ev.summary || '').trim();
+    if (!title) return null;
+
+    // 若使用者自己在參加者名單中且已明確按「拒絕 (declined)」，則跳過
+    if (Array.isArray(ev.attendees)) {
+      const selfAtt = ev.attendees.find((a) => a && a.self);
+      if (selfAtt && selfAtt.responseStatus === 'declined') return null;
+    }
+
+    const isAllDay = Boolean(ev.start && ev.start.date && !ev.start.dateTime);
+    let dateStr = '';
+    let year = 0;
+    let month = 0;
+    let day = 0;
+    let weekday = 0;
+    let durationMin = 60;
+    let timeLabel = '全天';
+    let sortTs = 0;
+
+    if (isAllDay) {
+      // ev.start.date 格式為 YYYY-MM-DD
+      dateStr = ev.start.date;
+      const parts = dateStr.split('-').map(Number);
+      year = parts[0];
+      month = parts[1];
+      day = parts[2];
+      const d = new Date(year, month - 1, day);
+      weekday = d.getDay();
+      sortTs = d.getTime();
+      durationMin = 60;
+    } else if (ev.start && ev.start.dateTime) {
+      const startDt = new Date(ev.start.dateTime);
+      const endDt = (ev.end && ev.end.dateTime) ? new Date(ev.end.dateTime) : new Date(startDt.getTime() + 3600000);
+      year = startDt.getFullYear();
+      month = startDt.getMonth() + 1;
+      day = startDt.getDate();
+      weekday = startDt.getDay();
+      dateStr = `${year}-${format2(month)}-${format2(day)}`;
+      sortTs = startDt.getTime();
+
+      const diffMin = Math.round((endDt.getTime() - startDt.getTime()) / 60000);
+      durationMin = diffMin > 0 ? diffMin : 60;
+
+      const sh = format2(startDt.getHours());
+      const sm = format2(startDt.getMinutes());
+      const eh = format2(endDt.getHours());
+      const em = format2(endDt.getMinutes());
+      timeLabel = `${sh}:${sm}–${eh}:${em}`;
+    } else {
+      return null;
+    }
+
+    return {
+      id: `${calendarId}::${ev.id}`,
+      rawEventId: ev.id,
+      calendarId,
+      calendarName: calendarName || '',
+      title,
+      dateStr,
+      year,
+      month,
+      day,
+      weekday,
+      timeLabel,
+      durationMin,
+      isAllDay,
+      sortTs
+    };
+  }
+
+  /**
+   * 抓取指定年、月、多個子日曆的所有展開後行程 (singleEvents=true)
+   */
+  async function fetchMonthEvents(accessToken, calendars, year, month) {
+    if (!Array.isArray(calendars) || calendars.length === 0) {
+      throw new Error('請至少勾選一個要讀取的 Google 子日曆（例如：個人家教）。');
+    }
+
+    // 本地時區當月 1 日 00:00:00 至次月 1 日 00:00:00
+    const startLocal = new Date(year, month - 1, 1, 0, 0, 0, 0);
+    const endLocal = new Date(year, month, 1, 0, 0, 0, 0);
+    const timeMin = startLocal.toISOString();
+    const timeMax = endLocal.toISOString();
+
+    const allEvents = [];
+    for (const cal of calendars) {
+      const calId = typeof cal === 'string' ? cal : cal.id;
+      const calName = typeof cal === 'string' ? cal : (cal.summary || cal.id);
+      let pageToken = '';
+
+      do {
+        const params = new URLSearchParams({
+          timeMin,
+          timeMax,
+          singleEvents: 'true',
+          orderBy: 'startTime',
+          maxResults: '2500'
+        });
+        if (pageToken) params.set('pageToken', pageToken);
+
+        const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?${params.toString()}`;
+        const data = await gcalFetchJson(url, accessToken);
+        const items = Array.isArray(data.items) ? data.items : [];
+
+        for (const ev of items) {
+          const norm = normalizeApiEvent(ev, calId, calName);
+          // 確保跨日或時區邊界只計入當月開始的課堂
+          if (norm && norm.year === year && norm.month === month) {
+            allEvents.push(norm);
+          }
+        }
+        pageToken = data.nextPageToken || '';
+      } while (pageToken);
+    }
+
+    allEvents.sort((a, b) => a.sortTs - b.sortTs || a.title.localeCompare(b.title, 'zh-Hant'));
+    return allEvents;
+  }
+
+  window.GoogleCalendarSync = {
+    getSavedToken,
+    clearToken,
+    signInWithGoogle,
+    fetchCalendarList,
+    fetchMonthEvents
+  };
+})();
+
+</script>
+  <script>
+/**
+ * 輔助匯入模組：支援 Google 日曆匯出之 .ics (iCalendar RFC 5545) 解析 + 互動範例資料產生器
+ * 讓公開到 GitHub Pages 後，尚未申請 OAuth Client ID 的訪客也能直接匯入 .ics 或一鍵試用完整功能
+ */
+(function () {
+  'use strict';
+
+  const DAY_MAP = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
+
+  function format2(n) {
+    return String(n).padStart(2, '0');
+  }
+
+  function parseIcsDateVal(rawVal) {
+    if (!rawVal) return null;
+    const clean = rawVal.trim();
+    // 全天格式 YYYYMMDD
+    if (/^\d{8}$/.test(clean)) {
+      const y = Number(clean.slice(0, 4));
+      const m = Number(clean.slice(4, 6));
+      const d = Number(clean.slice(6, 8));
+      return { dt: new Date(y, m - 1, d, 0, 0, 0), isAllDay: true };
+    }
+    // 時間格式 YYYYMMDDTHHMMSS(Z)
+    const m = clean.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z)?$/);
+    if (!m) return null;
+    const [, yy, mm, dd, hh, mi, ss, isUtc] = m;
+    if (isUtc) {
+      return {
+        dt: new Date(Date.UTC(Number(yy), Number(mm) - 1, Number(dd), Number(hh), Number(mi), Number(ss))),
+        isAllDay: false
+      };
+    }
+    return {
+      dt: new Date(Number(yy), Number(mm) - 1, Number(dd), Number(hh), Number(mi), Number(ss)),
+      isAllDay: false
+    };
+  }
+
+  function unescapeIcsText(s) {
+    return String(s || '')
+      .replace(/\\n/gi, ' ')
+      .replace(/\\,/g, ',')
+      .replace(/\\;/g, ';')
+      .replace(/\\\\/g, '\\')
+      .trim();
+  }
+
+  function buildEventRecord(id, calName, title, startDt, durationMin, isAllDay) {
+    const year = startDt.getFullYear();
+    const month = startDt.getMonth() + 1;
+    const day = startDt.getDate();
+    const weekday = startDt.getDay();
+    const dateStr = `${year}-${format2(month)}-${format2(day)}`;
+    let timeLabel = '全天';
+    if (!isAllDay) {
+      const endDt = new Date(startDt.getTime() + durationMin * 60000);
+      timeLabel = `${format2(startDt.getHours())}:${format2(startDt.getMinutes())}–${format2(endDt.getHours())}:${format2(endDt.getMinutes())}`;
+    }
+    return {
+      id,
+      rawEventId: id,
+      calendarId: 'ics_import',
+      calendarName: calName || '匯入的 .ics 日曆',
+      title,
+      dateStr,
+      year,
+      month,
+      day,
+      weekday,
+      timeLabel,
+      durationMin: durationMin > 0 ? durationMin : 60,
+      isAllDay,
+      sortTs: startDt.getTime()
+    };
+  }
+
+  /**
+   * 解析 .ics 文字內容，回傳展開單次與週期行程後的依月份分組 Map: { 'YYYY-MM': Event[] }
+   */
+  function parseIcsContent(icsText, targetYears = null) {
+    // Unfold RFC 5545 multi-line fields
+    const unfolded = String(icsText || '').replace(/\r\n[ \t]|\n[ \t]/g, '');
+    const lines = unfolded.split(/\r?\n/);
+
+    let calName = '匯入的日曆';
+    const rawEvents = [];
+    let cur = null;
+
+    for (const line of lines) {
+      if (!cur) {
+        if (line.startsWith('X-WR-CALNAME:')) {
+          calName = unescapeIcsText(line.slice('X-WR-CALNAME:'.length));
+        } else if (line === 'BEGIN:VEVENT') {
+          cur = { exdates: [] };
+        }
+        continue;
+      }
+      if (line === 'END:VEVENT') {
+        rawEvents.push(cur);
+        cur = null;
+        continue;
+      }
+
+      const colonIdx = line.indexOf(':');
+      if (colonIdx < 0) continue;
+      const keyPart = line.slice(0, colonIdx);
+      const valPart = line.slice(colonIdx + 1);
+      const baseKey = keyPart.split(';')[0].toUpperCase();
+
+      if (baseKey === 'UID') cur.uid = valPart.trim();
+      else if (baseKey === 'SUMMARY') cur.summary = unescapeIcsText(valPart);
+      else if (baseKey === 'STATUS') cur.status = valPart.trim().toUpperCase();
+      else if (baseKey === 'DTSTART') cur.dtstart = parseIcsDateVal(valPart);
+      else if (baseKey === 'DTEND') cur.dtend = parseIcsDateVal(valPart);
+      else if (baseKey === 'RRULE') cur.rrule = valPart.trim();
+      else if (baseKey === 'RECURRENCE-ID') cur.recurrenceId = parseIcsDateVal(valPart);
+      else if (baseKey === 'EXDATE') {
+        valPart.split(',').forEach((v) => {
+          const parsed = parseIcsDateVal(v);
+          if (parsed) cur.exdates.push(parsed.dt);
+        });
+      }
+    }
+
+    // 收集單次調課 override (UID + 原日期 YYYY-MM-DD)
+    const overriddenSet = new Set();
+    for (const ev of rawEvents) {
+      if (ev.uid && ev.recurrenceId) {
+        const d = ev.recurrenceId.dt;
+        overriddenSet.add(`${ev.uid}::${d.getFullYear()}-${format2(d.getMonth() + 1)}-${format2(d.getDate())}`);
+      }
+    }
+
+    const nowYear = new Date().getFullYear();
+    const minYear = targetYears ? Math.min(...targetYears) : nowYear - 1;
+    const maxYear = targetYears ? Math.max(...targetYears) : nowYear + 1;
+    const rangeStart = new Date(minYear, 0, 1, 0, 0, 0);
+    const rangeEnd = new Date(maxYear + 1, 0, 1, 0, 0, 0);
+
+    const byMonth = {};
+    const pushEv = (rec) => {
+      const ym = `${rec.year}-${format2(rec.month)}`;
+      if (!byMonth[ym]) byMonth[ym] = [];
+      byMonth[ym].push(rec);
+    };
+
+    rawEvents.forEach((ev, idx) => {
+      if (ev.status === 'CANCELLED' || !ev.dtstart || !ev.summary) return;
+      const startDt = ev.dtstart.dt;
+      const isAllDay = ev.dtstart.isAllDay;
+      const durationMin = (ev.dtend && !isAllDay)
+        ? Math.max(15, Math.round((ev.dtend.dt.getTime() - startDt.getTime()) / 60000))
+        : 60;
+      const uid = ev.uid || `ics_${idx}`;
+
+      if (!ev.rrule || ev.recurrenceId) {
+        if (startDt >= rangeStart && startDt < rangeEnd) {
+          pushEv(buildEventRecord(`${uid}::${startDt.getTime()}`, calName, ev.summary, startDt, durationMin, isAllDay));
+        }
+        return;
+      }
+
+      // 解析 RRULE (支援最常見的 FREQ=WEEKLY / DAILY, INTERVAL, UNTIL, COUNT, BYDAY)
+      const rules = {};
+      ev.rrule.split(';').forEach((part) => {
+        const [k, v] = part.split('=');
+        if (k && v) rules[k.toUpperCase()] = v;
+      });
+
+      const freq = rules.FREQ || '';
+      const interval = Math.max(1, Number(rules.INTERVAL) || 1);
+      const untilObj = rules.UNTIL ? parseIcsDateVal(rules.UNTIL) : null;
+      const untilDt = untilObj ? untilObj.dt : rangeEnd;
+      const maxCount = rules.COUNT ? Number(rules.COUNT) : 2000;
+
+      const exDateKeys = new Set(
+        ev.exdates.map((d) => `${d.getFullYear()}-${format2(d.getMonth() + 1)}-${format2(d.getDate())}`)
+      );
+
+      if (freq === 'WEEKLY') {
+        const byDays = rules.BYDAY
+          ? rules.BYDAY.split(',').map((s) => DAY_MAP[s.slice(-2).toUpperCase()]).filter((n) => n != null)
+          : [startDt.getDay()];
+
+        // 以 startDt 所在週的週日為基準推進
+        const weekZero = new Date(startDt.getFullYear(), startDt.getMonth(), startDt.getDate() - startDt.getDay());
+        let count = 0;
+        for (let w = 0; w < 260; w += interval) {
+          let stopAll = false;
+          for (const wd of byDays) {
+            const occ = new Date(
+              weekZero.getFullYear(),
+              weekZero.getMonth(),
+              weekZero.getDate() + w * 7 + wd,
+              startDt.getHours(),
+              startDt.getMinutes(),
+              startDt.getSeconds()
+            );
+            if (occ < startDt) continue;
+            if (occ > untilDt || occ >= rangeEnd || count >= maxCount) {
+              if (occ > untilDt || occ >= rangeEnd || count >= maxCount) stopAll = true;
+              continue;
+            }
+            count++;
+            if (occ < rangeStart) continue;
+            const dKey = `${occ.getFullYear()}-${format2(occ.getMonth() + 1)}-${format2(occ.getDate())}`;
+            if (exDateKeys.has(dKey) || overriddenSet.has(`${uid}::${dKey}`)) continue;
+            pushEv(buildEventRecord(`${uid}::${dKey}`, calName, ev.summary, occ, durationMin, isAllDay));
+          }
+          if (stopAll && count >= maxCount) break;
+          const nextWeek = new Date(weekZero.getFullYear(), weekZero.getMonth(), weekZero.getDate() + (w + interval) * 7);
+          if (nextWeek > untilDt || nextWeek >= rangeEnd) break;
+        }
+      }
+    });
+
+    Object.keys(byMonth).forEach((ym) => {
+      byMonth[ym].sort((a, b) => a.sortTs - b.sortTs);
+    });
+    return { calName, byMonth };
+  }
+
+  /**
+   * 建立展示用範例資料（涵蓋：一般單一學生、表情符號+樂器名、小名對應、家庭合併獨立明細 vs 家庭合併同張明細、單堂時長換算、書費）
+   */
+  function generateDemoDataset(year, month) {
+    const monthsToGen = [
+      { y: month === 1 ? year - 1 : year, m: month === 1 ? 12 : month - 1 },
+      { y: year, m: month }
+    ];
+
+    const demoStudents = [
+      {
+        id: 'demo_s1',
+        name: '東真那',
+        summaryLabel: '真那',
+        courseName: '大提琴課',
+        keywords: ['東真那', '真那'],
+        pricingMode: 'per_session',
+        rate: 1000,
+        groupName: '',
+        groupDetailMode: 'separate_detail_merged_summary'
+      },
+      {
+        id: 'demo_s2',
+        name: '伯寧',
+        summaryLabel: '',
+        courseName: '大提琴課',
+        keywords: ['伯寧'],
+        pricingMode: 'per_session',
+        rate: 950,
+        groupName: '燦燦、伯寧',
+        groupDetailMode: 'separate_detail_merged_summary'
+      },
+      {
+        id: 'demo_s3',
+        name: '燦燦',
+        summaryLabel: '',
+        courseName: '大提琴課',
+        keywords: ['燦燦'],
+        pricingMode: 'per_session',
+        rate: 950,
+        groupName: '燦燦、伯寧',
+        groupDetailMode: 'separate_detail_merged_summary'
+      },
+      {
+        id: 'demo_s4',
+        name: '昱丞、昱雙',
+        summaryLabel: '昱丞、昱雙',
+        courseName: '鋼琴課',
+        keywords: ['昱丞', '昱雙'],
+        pricingMode: 'by_duration',
+        rate: 800,
+        groupName: '昱丞、昱雙',
+        groupDetailMode: 'merged_both'
+      },
+      {
+        id: 'demo_s5',
+        name: '熹熹',
+        summaryLabel: '熹熹',
+        courseName: '鋼琴課',
+        keywords: ['CC', '熹熹'],
+        pricingMode: 'per_session',
+        rate: 900,
+        groupName: '',
+        groupDetailMode: 'separate_detail_merged_summary'
+      },
+      {
+        id: 'demo_s6',
+        name: 'Kelly',
+        summaryLabel: 'Kelly',
+        courseName: '大提琴課',
+        keywords: ['Kelly'],
+        pricingMode: 'per_session',
+        rate: 1000,
+        groupName: '',
+        groupDetailMode: 'separate_detail_merged_summary'
+      }
+    ];
+
+    const eventsByMonth = {};
+    // 每週固定課表範本: [weekday(0-6), hour, min, durationMin, title]
+    const weeklySchedule = [
+      [1, 17, 0, 60, '🎵伯寧大提琴'],
+      [1, 19, 45, 60, '🎵燦燦大提琴'],
+      [2, 13, 0, 60, 'Kelly Cello'],
+      [5, 20, 0, 60, '東真那大提琴'],
+      [6, 16, 0, 120, '昱丞昱雙鋼琴'],
+      [6, 18, 30, 60, 'CC鋼琴']
+    ];
+
+    monthsToGen.forEach(({ y, m }) => {
+      const ym = `${y}-${format2(m)}`;
+      const list = [];
+      const daysInMonth = new Date(y, m, 0).getDate();
+      for (let d = 1; d <= daysInMonth; d++) {
+        const wd = new Date(y, m - 1, d).getDay();
+        weeklySchedule.forEach(([schedWd, hh, mm, dur, title], idx) => {
+          if (wd === schedWd) {
+            // 模擬 Kelly 隔週或偶爾請假少一堂，更貼近真實情境
+            if (title === 'Kelly Cello' && d > 25) return;
+            const dt = new Date(y, m - 1, d, hh, mm, 0);
+            list.push(buildEventRecord(`demo_${ym}_${d}_${idx}`, '個人家教 (範例)', title, dt, dur, false));
+          }
+        });
+      }
+      eventsByMonth[ym] = list;
+    });
+
+    return { demoStudents, eventsByMonth };
+  }
+
+  window.IcsHelper = {
+    parseIcsContent,
+    generateDemoDataset
+  };
+})();
+
+</script>
+  <script>
+/**
+ * 家教學費與薪資自動結算工具 — 主程式邏輯 (app.js)
+ * 負責：狀態儲存、智慧比對日曆行程與學生、單堂／時長計費、家庭合併雙模式、分月微調、UI 渲染與匯出
+ */
+(function () {
+  'use strict';
+
+  const CFG = window.TUTORING_CALC_CONFIG;
+  const WEEKDAY_ZH = ['日', '一', '二', '三', '四', '五', '六'];
+
+  // --- 預設初始狀態 ---
+  function getDefaultState() {
+    const now = new Date();
+    return {
+      clientId: CFG.DEFAULT_GOOGLE_CLIENT_ID || '',
+      selectedCalendars: [],   // [{ id, summary }]
+      cachedCalendars: [],
+      activeYear: now.getFullYear(),
+      activeMonth: now.getMonth() + 1,
+      activeTab: 'overview',   // 'overview' | 'details' | 'students'
+      selectedCardId: '',
+      isDemoMode: false,
+      ignoredEventTitles: [],
+      students: [],
+      eventsByMonth: {},       // { 'YYYY-MM': NormalizedEvent[] }
+      lastSyncByMonth: {},     // { 'YYYY-MM': 'YYYY/MM/DD HH:mm' }
+      monthAdjustments: {}     // { 'YYYY-MM': { sessionOverrides, manualSessions, cardExtras, paidMap } }
+    };
+  }
+
+  let state = loadState();
+
+  function loadState() {
+    const base = getDefaultState();
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlClientId = urlParams.get('client_id');
+
+      const raw = localStorage.getItem(CFG.STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        Object.assign(base, parsed);
+      }
+      if (urlClientId) {
+        base.clientId = urlClientId.trim();
+      } else if (!base.clientId && CFG.DEFAULT_GOOGLE_CLIENT_ID) {
+        base.clientId = CFG.DEFAULT_GOOGLE_CLIENT_ID;
+      }
+    } catch (e) {
+      console.warn('讀取本機快取失敗，使用預設值：', e);
+    }
+    return base;
+  }
+
+  function saveState() {
+    try {
+      localStorage.setItem(CFG.STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      showToast('本機儲存空間已滿或受限，建議匯出備份檔保存。', 'error');
+    }
+  }
+
+  function uid(prefix = 'id') {
+    return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+  }
+
+  function format2(n) {
+    return String(n).padStart(2, '0');
+  }
+
+  function ymKey(year, month) {
+    return `${year}-${format2(month)}`;
+  }
+
+  function ymCompact(year, month) {
+    return `${year}${format2(month)}`;
+  }
+
+  function formatMoney(n) {
+    const val = Math.round(Number(n) || 0);
+    return val.toLocaleString('en-US');
+  }
+
+  function escHtml(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function getMonthAdj(ym) {
+    if (!state.monthAdjustments[ym]) {
+      state.monthAdjustments[ym] = {
+        sessionOverrides: {},
+        manualSessions: {},
+        cardExtras: {},
+        paidMap: {}
+      };
+    }
+    const adj = state.monthAdjustments[ym];
+    if (!adj.sessionOverrides) adj.sessionOverrides = {};
+    if (!adj.manualSessions) adj.manualSessions = {};
+    if (!adj.cardExtras) adj.cardExtras = {};
+    if (!adj.paidMap) adj.paidMap = {};
+    return adj;
+  }
+
+  // --- Toast 通知 ---
+  function showToast(msg, type = 'info') {
+    const box = document.getElementById('toastContainer');
+    if (!box) return;
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.textContent = msg;
+    box.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('visible'));
+    setTimeout(() => {
+      el.classList.remove('visible');
+      setTimeout(() => el.remove(), 260);
+    }, 3400);
+  }
+
+  // --- 智慧解析未歸戶日曆標題：剝除表情符號與尾端樂器名 ---
+  function extractSuggestedStudentInfo(rawTitle) {
+    let cleaned = String(rawTitle || '')
+      // 移除常見符號與音樂 emoji
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}♪♫♬♩♭♮♯]/gu, '')
+      .trim();
+
+    let detectedCourse = '';
+    for (const suffix of CFG.INSTRUMENT_SUFFIXES) {
+      const re = new RegExp(`\\s*${suffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'i');
+      if (re.test(cleaned)) {
+        const candidate = cleaned.replace(re, '').trim();
+        if (candidate.length > 0) {
+          cleaned = candidate;
+          if (/大提琴|cello/i.test(suffix)) detectedCourse = '大提琴課';
+          else if (/小提琴|violin/i.test(suffix)) detectedCourse = '小提琴課';
+          else if (/鋼琴|piano/i.test(suffix)) detectedCourse = '鋼琴課';
+          else if (/長笛/i.test(suffix)) detectedCourse = '長笛課';
+          else if (/吉他/i.test(suffix)) detectedCourse = '吉他課';
+          break;
+        }
+      }
+    }
+    return {
+      studentName: cleaned || rawTitle.trim(),
+      courseName: detectedCourse
+    };
+  }
+
+  // --- 判斷某筆行程是否被排除（請假／停課／已忽略關鍵字） ---
+  function isGloballyIgnoredEvent(ev) {
+    const titleLower = String(ev.title || '').toLowerCase();
+    for (const kw of CFG.DEFAULT_EXCLUDE_KEYWORDS) {
+      if (kw && titleLower.includes(kw.toLowerCase())) return true;
+    }
+    for (const kw of (state.ignoredEventTitles || [])) {
+      if (kw && titleLower.includes(kw.toLowerCase())) return true;
+    }
+    return false;
+  }
+
+  /**
+   * 將單筆日曆活動比對至對應的學生陣列
+   * 若一個活動同時包含兩位獨立兄弟姊妹關鍵字（如「昱丞昱雙鋼琴」且兩人分開建檔）會同時匹配；
+   * 但若一個關鍵字是另一個已匹配更長關鍵字的子字串（如「小玉」vs「小玉小孩」），則優先歸給較長關鍵字的學生。
+   */
+  function matchEventToStudents(ev, students) {
+    const titleLower = String(ev.title || '').toLowerCase();
+    const hits = [];
+
+    for (const stu of students) {
+      const kws = (stu.keywords || []).map((k) => String(k || '').trim()).filter(Boolean);
+      let bestKw = '';
+      for (const kw of kws) {
+        if (titleLower.includes(kw.toLowerCase())) {
+          if (kw.length > bestKw.length) bestKw = kw;
+        }
+      }
+      if (bestKw) {
+        hits.push({ stu, matchedKw: bestKw.toLowerCase() });
+      }
+    }
+
+    if (hits.length <= 1) return hits.map((h) => h.stu);
+
+    // 過濾掉關鍵字完全包含於另一位命中學生更長關鍵字內的情況
+    return hits
+      .filter((h, idx) => !hits.some((other, oIdx) =>
+        oIdx !== idx &&
+        other.matchedKw.length > h.matchedKw.length &&
+        other.matchedKw.includes(h.matchedKw)
+      ))
+      .map((h) => h.stu);
+  }
+
+  function calcDefaultSessionAmount(stu, durationMin) {
+    const rate = Number(stu.rate) || 0;
+    if (stu.pricingMode === 'by_duration') {
+      const mins = Number(durationMin) > 0 ? Number(durationMin) : 60;
+      return Math.round((rate * mins) / 60);
+    }
+    return Math.round(rate);
+  }
+
+  function formatDateShort(month, day) {
+    return `${month}月${day}日`;
+  }
+
+  function formatDateWithWeekday(month, day, weekday) {
+    return `${month}月${day}日 (${WEEKDAY_ZH[weekday] || ''})`;
+  }
+
+  /**
+   * 核心計算引擎：組出指定年月的「個別明細卡 (detailCards)」、「薪資總表 (summaryRows)」與「未歸戶行程 (unmatchedGroups)」
+   */
+  function buildMonthlyReport(year, month) {
+    const ym = ymKey(year, month);
+    const rawEvents = state.eventsByMonth[ym] || [];
+    const adj = getMonthAdj(ym);
+    const students = state.students || [];
+
+    const studentEventsMap = new Map(); // stu.id -> Event[]
+    students.forEach((s) => studentEventsMap.set(s.id, []));
+
+    const unmatchedMap = new Map(); // suggestedName -> { suggestedName, courseName, rawTitles: Set, count, sampleDates: [] }
+    let matchedEventCount = 0;
+
+    for (const ev of rawEvents) {
+      if (isGloballyIgnoredEvent(ev)) continue;
+      const matchedStudents = matchEventToStudents(ev, students);
+      if (matchedStudents.length > 0) {
+        matchedEventCount++;
+        matchedStudents.forEach((stu) => {
+          studentEventsMap.get(stu.id).push(ev);
+        });
+      } else {
+        const info = extractSuggestedStudentInfo(ev.title);
+        const key = info.studentName.toLowerCase();
+        if (!unmatchedMap.has(key)) {
+          unmatchedMap.set(key, {
+            key,
+            suggestedName: info.studentName,
+            courseName: info.courseName,
+            rawTitles: new Set(),
+            count: 0,
+            sampleDates: []
+          });
+        }
+        const grp = unmatchedMap.get(key);
+        grp.rawTitles.add(ev.title);
+        grp.count++;
+        if (grp.sampleDates.length < 4) {
+          grp.sampleDates.push(`${ev.month}/${ev.day}`);
+        }
+      }
+    }
+
+    // 1. 建立 Detail Cards（支援「獨立明細」與「merged_both 同一張家庭明細合併顯示」）
+    const detailCards = [];
+    const mergedFamilyBuckets = new Map(); // groupName -> Student[]
+
+    students.forEach((stu) => {
+      const grp = String(stu.groupName || '').trim();
+      if (grp && stu.groupDetailMode === 'merged_both') {
+        if (!mergedFamilyBuckets.has(grp)) mergedFamilyBuckets.set(grp, []);
+        mergedFamilyBuckets.get(grp).push(stu);
+      } else {
+        detailCards.push(buildSingleOrMergedCard([stu], false, grp, year, month, studentEventsMap, adj));
+      }
+    });
+
+    mergedFamilyBuckets.forEach((familyStudents, grpName) => {
+      detailCards.push(buildSingleOrMergedCard(familyStudents, true, grpName, year, month, studentEventsMap, adj));
+    });
+
+    // 依學生原始順序排序 detailCards
+    const stuOrder = new Map(students.map((s, i) => [s.id, i]));
+    detailCards.sort((a, b) => (stuOrder.get(a.primaryStudentId) ?? 999) - (stuOrder.get(b.primaryStudentId) ?? 999));
+
+    // 2. 建立「每月家教薪資收入總表 (summaryRows)」（無論 separate_detail_merged_summary 或 merged_both，只要同 groupName 都在總表合併加總！）
+    const summaryMap = new Map();
+    const summaryRows = [];
+
+    detailCards.forEach((card) => {
+      const grp = card.groupName;
+      const sumKey = grp ? `grp::${grp}` : `stu::${card.primaryStudentId}`;
+
+      if (!summaryMap.has(sumKey)) {
+        const row = {
+          sumKey,
+          label: grp || card.summaryLabel || card.studentLabel,
+          sessionCount: 0,
+          totalMinutes: 0,
+          lessonSubtotal: 0,
+          extraSubtotal: 0,
+          totalAmount: 0,
+          sourceCardIds: [],
+          memberStudents: [],
+          memberBreakdowns: [],
+          paid: Boolean(adj.paidMap[sumKey])
+        };
+        summaryMap.set(sumKey, row);
+        summaryRows.push(row);
+      }
+
+      const target = summaryMap.get(sumKey);
+      target.sessionCount += card.sessions.length;
+      target.totalMinutes += card.totalMinutes;
+      target.lessonSubtotal += card.lessonSubtotal;
+      target.extraSubtotal += card.extraSubtotal;
+      target.totalAmount += card.totalAmount;
+      target.sourceCardIds.push(card.cardId);
+      card.students.forEach((s) => {
+        if (!target.memberStudents.some((m) => m.id === s.id)) {
+          target.memberStudents.push(s);
+        }
+      });
+      if (grp && !card.isMergedFamily) {
+        target.memberBreakdowns.push(`${card.studentLabel} ${formatMoney(card.totalAmount)}`);
+      }
+    });
+
+    summaryRows.forEach((r) => {
+      r.breakdownNote = r.memberBreakdowns.length > 1 ? r.memberBreakdowns.join(' ＋ ') : '';
+    });
+
+    const grandTotal = summaryRows.reduce((acc, r) => acc + r.totalAmount, 0);
+    const totalSessions = summaryRows.reduce((acc, r) => acc + r.sessionCount, 0);
+    const totalMinutes = summaryRows.reduce((acc, r) => acc + r.totalMinutes, 0);
+    const paidTotal = summaryRows.filter((r) => r.paid).reduce((acc, r) => acc + r.totalAmount, 0);
+
+    return {
+      year,
+      month,
+      ym,
+      rawEventCount: rawEvents.length,
+      matchedEventCount,
+      unmatchedGroups: Array.from(unmatchedMap.values()),
+      detailCards,
+      summaryRows,
+      grandTotal,
+      paidTotal,
+      totalSessions,
+      totalMinutes
+    };
+  }
+
+  function buildSingleOrMergedCard(cardStudents, isMergedFamily, groupName, year, month, studentEventsMap, adj) {
+    const firstStu = cardStudents[0];
+    const cardId = isMergedFamily ? `grp_${groupName}` : `stu_${firstStu.id}`;
+    const studentLabel = isMergedFamily ? groupName : firstStu.name;
+    const summaryLabel = isMergedFamily ? groupName : (firstStu.summaryLabel || firstStu.name);
+
+    // 課程名稱標題（如：大提琴課）
+    const courses = Array.from(new Set(cardStudents.map((s) => s.courseName).filter(Boolean)));
+    const courseTitle = courses.join('／');
+
+    // 收集所有對應的日曆課堂
+    const activeSessions = [];
+    const excludedSessions = [];
+
+    cardStudents.forEach((stu) => {
+      const evs = studentEventsMap.get(stu.id) || [];
+      evs.forEach((ev) => {
+        const ovKey = `${stu.id}::${ev.id}`;
+        const ov = adj.sessionOverrides[ovKey] || {};
+        const defaultAmt = calcDefaultSessionAmount(stu, ev.durationMin);
+        const hasCustom = ov.customAmount !== undefined && ov.customAmount !== null && ov.customAmount !== '';
+        const finalAmt = hasCustom ? Math.round(Number(ov.customAmount) || 0) : defaultAmt;
+
+        const sessObj = {
+          sessionKey: ovKey,
+          isManual: false,
+          studentId: stu.id,
+          studentName: stu.name,
+          eventTitle: ev.title,
+          dateStr: ev.dateStr,
+          dateShortLabel: formatDateShort(ev.month, ev.day),
+          dateDisplay: formatDateWithWeekday(ev.month, ev.day, ev.weekday),
+          timeLabel: ev.timeLabel,
+          durationMin: ev.durationMin,
+          defaultAmount: defaultAmt,
+          amount: finalAmt,
+          isCustomAmount: hasCustom,
+          note: ov.note || '',
+          excluded: Boolean(ov.excluded),
+          sortTs: ev.sortTs
+        };
+
+        if (sessObj.excluded) excludedSessions.push(sessObj);
+        else activeSessions.push(sessObj);
+      });
+    });
+
+    // 加入該明細卡手動補登的課堂
+    const manuals = adj.manualSessions[cardId] || [];
+    manuals.forEach((m) => {
+      const parts = String(m.dateStr || `${year}-${format2(month)}-01`).split('-').map(Number);
+      const my = parts[0] || year;
+      const mm = parts[1] || month;
+      const md = parts[2] || 1;
+      const dt = new Date(my, mm - 1, md, 12, 0, 0);
+      activeSessions.push({
+        sessionKey: m.id,
+        manualId: m.id,
+        isManual: true,
+        studentId: firstStu.id,
+        studentName: m.studentName || studentLabel,
+        eventTitle: '手動補登課堂',
+        dateStr: `${my}-${format2(mm)}-${format2(md)}`,
+        dateShortLabel: formatDateShort(mm, md),
+        dateDisplay: formatDateWithWeekday(mm, md, dt.getDay()),
+        timeLabel: '手動補登',
+        durationMin: Number(m.durationMin) || 60,
+        defaultAmount: Math.round(Number(m.amount) || 0),
+        amount: Math.round(Number(m.amount) || 0),
+        isCustomAmount: false,
+        note: m.note || '補課',
+        excluded: false,
+        sortTs: dt.getTime()
+      });
+    });
+
+    activeSessions.sort((a, b) => a.sortTs - b.sortTs || a.studentName.localeCompare(b.studentName, 'zh-Hant'));
+    excludedSessions.sort((a, b) => a.sortTs - b.sortTs);
+
+    // 書費 / 其他費用列（預設至少有一列空白「書費/其他費用」方便直接填寫，完全比照截圖 1！）
+    let extras = adj.cardExtras[cardId];
+    if (!Array.isArray(extras) || extras.length === 0) {
+      extras = [{ id: 'default_extra', label: '書費/其他費用', amount: '', note: '' }];
+    }
+
+    const lessonSubtotal = activeSessions.reduce((acc, s) => acc + s.amount, 0);
+    const extraSubtotal = extras.reduce((acc, ex) => acc + (Math.round(Number(ex.amount) || 0)), 0);
+    const totalMinutes = activeSessions.reduce((acc, s) => acc + (Number(s.durationMin) || 60), 0);
+
+    const usesDuration = cardStudents.some((s) => s.pricingMode === 'by_duration');
+    const rateHeaderLabel = usesDuration ? '鐘點費/60m換算' : '鐘點費/堂';
+
+    return {
+      cardId,
+      primaryStudentId: firstStu.id,
+      students: cardStudents,
+      isMergedFamily,
+      groupName,
+      tabTitle: studentLabel,
+      studentLabel,
+      summaryLabel,
+      courseTitle,
+      rateHeaderLabel,
+      sessions: activeSessions,
+      excludedSessions,
+      extras,
+      lessonSubtotal,
+      extraSubtotal,
+      totalMinutes,
+      totalAmount: lessonSubtotal + extraSubtotal
+    };
+  }
+
+  // =========================================================================
+  // UI 渲染函式
+  // =========================================================================
+
+  function renderAll() {
+    const report = buildMonthlyReport(state.activeYear, state.activeMonth);
+    window.__latestReport = report;
+
+    renderSyncStatus();
+    renderBannersAndWelcome(report);
+    renderMonthBar();
+    renderKpis(report);
+    renderUnmatchedPanel(report);
+    renderTabsState(report);
+    renderOverviewSplit(report);
+    renderAllDetailsGrid(report);
+    renderStudentsConfigTable();
+  }
+
+  function renderSyncStatus() {
+    const badge = document.getElementById('syncStatusBadge');
+    const txt = document.getElementById('syncStatusText');
+    const btnLabel = document.getElementById('btnGoogleSignInLabel');
+    const tokenRec = window.GoogleCalendarSync.getSavedToken(state.clientId);
+
+    const calNames = (state.selectedCalendars || []).map((c) => c.summary).join('、');
+    if (tokenRec && calNames) {
+      badge.className = 'sync-badge connected';
+      txt.textContent = `已連結：${calNames}`;
+      btnLabel.textContent = '同步本月日曆';
+    } else if (tokenRec) {
+      badge.className = 'sync-badge partial';
+      txt.textContent = '已登入 Google（請勾選子日曆）';
+      btnLabel.textContent = '選擇家教日曆';
+    } else if (calNames) {
+      badge.className = 'sync-badge partial';
+      txt.textContent = `日曆：${calNames}（點右側重新同步）`;
+      btnLabel.textContent = 'Google 帳號一鍵同步';
+    } else {
+      badge.className = 'sync-badge disconnected';
+      txt.textContent = '尚未連結 Google 日曆';
+      btnLabel.textContent = 'Google 帳號一鍵同步';
+    }
+  }
+
+  function renderBannersAndWelcome(report) {
+    const demoBanner = document.getElementById('demoBanner');
+    demoBanner.classList.toggle('hidden', !state.isDemoMode);
+
+    const hasAnyData = state.students.length > 0 || Object.keys(state.eventsByMonth).some((k) => (state.eventsByMonth[k] || []).length > 0);
+    const welcome = document.getElementById('welcomeCard');
+    welcome.classList.toggle('hidden', hasAnyData);
+  }
+
+  function renderMonthBar() {
+    const { activeYear: y, activeMonth: m } = state;
+    const ym = ymKey(y, m);
+    document.getElementById('monthPickerInput').value = ym;
+    document.getElementById('currentMonthLabel').textContent = `${y}年 ${m}月`;
+
+    const syncHint = document.getElementById('lastSyncHint');
+    const lastSync = state.lastSyncByMonth[ym];
+    syncHint.textContent = lastSync ? `最後同步：${lastSync}` : '';
+
+    // 類似 Google Sheet 分頁列：顯示目前選取月份前後共 6 個月份快速切換標籤 (YYYYMM)
+    const tabsWrap = document.getElementById('quickMonthTabs');
+    const months = [];
+    for (let offset = 1; offset >= -4; offset--) {
+      const dt = new Date(y, m - 1 + offset, 1);
+      months.push({ yy: dt.getFullYear(), mm: dt.getMonth() + 1 });
+    }
+
+    tabsWrap.innerHTML = months.map(({ yy, mm }) => {
+      const active = yy === y && mm === m;
+      const hasEv = (state.eventsByMonth[ymKey(yy, mm)] || []).length > 0;
+      return `<button type="button" class="ym-tab ${active ? 'active' : ''} ${hasEv ? 'has-data' : ''}" data-yy="${yy}" data-mm="${mm}">
+        ${ymCompact(yy, mm)}
+      </button>`;
+    }).join('');
+  }
+
+  function renderKpis(report) {
+    document.getElementById('kpiGrandTotal').textContent = `NT$ ${formatMoney(report.grandTotal)}`;
+    const unpaid = report.grandTotal - report.paidTotal;
+    document.getElementById('kpiPaidHint').textContent = report.paidTotal > 0
+      ? `已收 NT$ ${formatMoney(report.paidTotal)} · 待收 NT$ ${formatMoney(unpaid)}`
+      : '課程鐘點 ＋ 書費／其他合計';
+
+    document.getElementById('kpiGroupCount').textContent = `${report.summaryRows.length} 組`;
+    document.getElementById('kpiStudentSub').textContent = `共設定 ${state.students.length} 位學生規則`;
+
+    document.getElementById('kpiSessionCount').textContent = `${report.totalSessions} 堂`;
+    const hrs = Math.round((report.totalMinutes / 60) * 10) / 10;
+    document.getElementById('kpiHoursSub').textContent = `合計授課 ${hrs} 小時`;
+
+    document.getElementById('kpiMatchStatus').textContent = `${report.matchedEventCount} / ${report.rawEventCount} 筆`;
+    const unCnt = report.unmatchedGroups.length;
+    const unSub = document.getElementById('kpiUnmatchedSub');
+    if (report.rawEventCount === 0) {
+      unSub.textContent = '本月尚無匯入日曆行程';
+      unSub.className = 'kpi-sub';
+    } else if (unCnt > 0) {
+      unSub.textContent = `⚠️ 有 ${unCnt} 組新行程待設定鐘點費`;
+      unSub.className = 'kpi-sub text-warn';
+    } else {
+      unSub.textContent = '✅ 本月行程已全數對應完成';
+      unSub.className = 'kpi-sub text-ok';
+    }
+  }
+
+  function renderUnmatchedPanel(report) {
+    const panel = document.getElementById('unmatchedPanel');
+    const groups = report.unmatchedGroups;
+    if (groups.length === 0) {
+      panel.classList.add('hidden');
+      return;
+    }
+    panel.classList.remove('hidden');
+    document.getElementById('unmatchedCountBadge').textContent = String(groups.length);
+
+    const studentOptions = state.students.map((s) =>
+      `<option value="${escHtml(s.id)}">歸入現有學生：${escHtml(s.name)}</option>`
+    ).join('');
+
+    const listEl = document.getElementById('unmatchedList');
+    listEl.innerHTML = groups.map((g, idx) => {
+      const rawSample = Array.from(g.rawTitles).join('、');
+      return `
+        <div class="unmatched-item" data-idx="${idx}">
+          <label class="unmatched-check">
+            <input type="checkbox" class="unmatched-cb" checked data-name="${escHtml(g.suggestedName)}" data-course="${escHtml(g.courseName)}" />
+            <div class="unmatched-info">
+              <div class="unmatched-title-row">
+                <input type="text" class="inline-name-input unmatched-name-input" value="${escHtml(g.suggestedName)}" title="建立後的學生名稱" />
+                <span class="pill-count">本月 ${g.count} 堂 (${escHtml(g.sampleDates.join(', '))})</span>
+              </div>
+              <div class="unmatched-raw">原日曆標題：${escHtml(rawSample)}</div>
+            </div>
+          </label>
+          <div class="unmatched-controls">
+            <input type="number" min="0" step="50" class="inline-rate-input unmatched-rate-input" placeholder="填入鐘點費 (如 1000)" />
+            <button type="button" class="btn btn-xs btn-primary btn-create-single">➕ 建立</button>
+            ${state.students.length > 0 ? `
+              <select class="select-xs unmatched-merge-select" data-keyword="${escHtml(g.suggestedName)}">
+                <option value="">或歸入現有學生...</option>
+                ${studentOptions}
+              </select>
+            ` : ''}
+            <button type="button" class="btn btn-xs btn-ghost btn-ignore-title" data-keyword="${escHtml(g.suggestedName)}" title="這不是家教課，之後自動忽略">🙈 忽略</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderTabsState(report) {
+    document.getElementById('tabDetailCount').textContent = String(report.detailCards.length);
+    document.getElementById('tabStudentCount').textContent = String(state.students.length);
+
+    document.querySelectorAll('.view-tab').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.tab === state.activeTab);
+    });
+
+    document.getElementById('viewOverview').classList.toggle('hidden', state.activeTab !== 'overview');
+    document.getElementById('viewDetails').classList.toggle('hidden', state.activeTab !== 'details');
+    document.getElementById('viewStudents').classList.toggle('hidden', state.activeTab !== 'students');
+  }
+
+  function renderOverviewSplit(report) {
+    document.getElementById('summaryTableTitle').textContent = `${report.year}年${report.month}月 每月家教薪資收入`;
+    const tbody = document.getElementById('summaryTableBody');
+
+    if (report.detailCards.length > 0) {
+      const exists = report.detailCards.some((c) => c.cardId === state.selectedCardId);
+      if (!exists) state.selectedCardId = report.detailCards[0].cardId;
+    } else {
+      state.selectedCardId = '';
+    }
+
+    if (report.summaryRows.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="empty-cell">
+            尚未建立學生或匯入本月行程。請點上方「<strong>Google 帳號一鍵同步</strong>」或「<strong>➕ 新增學生規則</strong>」！
+          </td>
+        </tr>
+      `;
+    } else {
+      tbody.innerHTML = report.summaryRows.map((row, idx) => {
+        const isSelected = row.sourceCardIds.includes(state.selectedCardId);
+        // 若此總表列僅對應單一學生，提供超方便行內直接填寫鐘點費欄位！
+        let rateQuickHtml = '';
+        if (row.memberStudents.length === 1) {
+          const s = row.memberStudents[0];
+          const unitTag = s.pricingMode === 'by_duration' ? '/60m' : '/堂';
+          const missingClass = (!s.rate || Number(s.rate) === 0) ? 'rate-missing' : '';
+          rateQuickHtml = `
+            <div class="quick-rate-box" onclick="event.stopPropagation()">
+              <input
+                type="number"
+                min="0"
+                step="50"
+                class="quick-rate-input ${missingClass}"
+                data-stu-id="${escHtml(s.id)}"
+                value="${s.rate === '' || s.rate == null ? '' : escHtml(s.rate)}"
+                placeholder="填鐘點費"
+              />
+              <span class="unit-tag">${unitTag}</span>
+            </div>
+          `;
+        } else {
+          rateQuickHtml = `<span class="multi-rate-hint" title="家庭內含多位成員，點擊右側可檢視或調整各自鐘點費">家庭合併 (${row.memberStudents.length}人)</span>`;
+        }
+
+        return `
+          <tr class="summary-row ${isSelected ? 'selected' : ''} ${row.paid ? 'is-paid' : ''}" data-first-card="${escHtml(row.sourceCardIds[0] || '')}">
+            <td class="text-center text-muted">${idx + 1}</td>
+            <td>
+              <div class="sum-name-main">${escHtml(row.label)}</div>
+              ${row.breakdownNote ? `<div class="sum-breakdown">${escHtml(row.breakdownNote)}</div>` : ''}
+            </td>
+            <td class="text-center">${row.sessionCount}</td>
+            <td>${rateQuickHtml}</td>
+            <td class="sum-amount-cell">${formatMoney(row.totalAmount)}</td>
+            <td class="text-center" onclick="event.stopPropagation()">
+              <input type="checkbox" class="paid-checkbox" data-sum-key="${escHtml(row.sumKey)}" ${row.paid ? 'checked' : ''} title="標記本月已收款" />
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    document.getElementById('summaryTotalSessionsCell').textContent = String(report.totalSessions);
+    document.getElementById('summaryGrandTotalCell').textContent = formatMoney(report.grandTotal);
+
+    // 右欄下拉選單與單張明細渲染
+    const sel = document.getElementById('activeCardSelect');
+    if (report.detailCards.length === 0) {
+      sel.innerHTML = `<option value="">（尚無學生明細）</option>`;
+      document.getElementById('activeDetailContainer').innerHTML = `
+        <div class="empty-detail-box">
+          建立學生或同步 Google 日曆後，此處會自動顯示該學生當月的上課日期與學費明細表。
+        </div>
+      `;
+    } else {
+      sel.innerHTML = report.detailCards.map((c) =>
+        `<option value="${escHtml(c.cardId)}" ${c.cardId === state.selectedCardId ? 'selected' : ''}>
+          📄 ${escHtml(c.studentLabel)}（本月 ${c.sessions.length} 堂 · NT$ ${formatMoney(c.totalAmount)}）
+        </option>`
+      ).join('');
+
+      const activeCard = report.detailCards.find((c) => c.cardId === state.selectedCardId) || report.detailCards[0];
+      document.getElementById('activeDetailContainer').innerHTML = buildDetailSheetHtml(activeCard, report.year, report.month);
+    }
+  }
+
+  function renderAllDetailsGrid(report) {
+    const grid = document.getElementById('viewDetails');
+    if (report.detailCards.length === 0) {
+      grid.innerHTML = `<div class="panel empty-detail-box">尚未建立任何學生明細，請先同步 Google 日曆或新增學生。</div>`;
+      return;
+    }
+    grid.innerHTML = report.detailCards.map((card) => `
+      <div class="panel detail-grid-card">
+        <div class="detail-grid-card-top">
+          <span class="card-badge">${card.isMergedFamily ? '👨‍👩‍👧‍👦 家庭合併明細' : '🎓 個別學生明細'}</span>
+          <div class="detail-card-actions">
+            <button type="button" class="btn btn-xs btn-ghost btn-grid-copy" data-card-id="${escHtml(card.cardId)}">📋 複製明細</button>
+          </div>
+        </div>
+        ${buildDetailSheetHtml(card, report.year, report.month)}
+      </div>
+    `).join('');
+  }
+
+  /**
+   * 產生完全比照截圖 1 視覺風格的「學生當月費用明細表」HTML（支援行內修改單堂金額、備註、書費、排除與還原）
+   */
+  function buildDetailSheetHtml(card, year, month) {
+    const isMergedMulti = card.isMergedFamily && card.sessions.some((s) => s.studentName !== card.studentLabel);
+    const colSpanAll = isMergedMulti ? 4 : 3;
+    const courseTitleText = card.courseTitle
+      ? `${year}年${month}月份${card.courseTitle}費用明細`
+      : `${year}年${month}月份課程費用明細`;
+
+    // 上方快速調整此學生預設鐘點費列
+    const stuRatePills = card.students.map((s) => `
+      <div class="stu-rate-inline-bar">
+        <span class="stu-rate-name">⚙️ ${escHtml(s.name)} 預設鐘點費：</span>
+        <input
+          type="number"
+          min="0"
+          step="50"
+          class="inline-rate-input stu-base-rate-input ${!s.rate ? 'rate-missing' : ''}"
+          data-stu-id="${escHtml(s.id)}"
+          value="${s.rate === '' || s.rate == null ? '' : escHtml(s.rate)}"
+          placeholder="請填入金額"
+        />
+        <select class="select-xs stu-mode-select" data-stu-id="${escHtml(s.id)}">
+          <option value="per_session" ${s.pricingMode === 'per_session' ? 'selected' : ''}>元 / 堂（固定）</option>
+          <option value="by_duration" ${s.pricingMode === 'by_duration' ? 'selected' : ''}>元 / 60分鐘（依時長換算）</option>
+        </select>
+        <button type="button" class="btn btn-xs btn-ghost btn-edit-stu-modal" data-stu-id="${escHtml(s.id)}" title="編輯關鍵字、課程名與家庭合併">編輯規則</button>
+      </div>
+    `).join('');
+
+    const sessionRowsHtml = card.sessions.length === 0
+      ? `<tr>
+          <td colspan="${colSpanAll}" class="empty-session-cell">本月尚無對應的上課日期（可檢查日曆關鍵字或點上方「➕ 補登課堂」）</td>
+        </tr>`
+      : card.sessions.map((sess) => `
+        <tr class="detail-session-row ${sess.isCustomAmount ? 'has-override' : ''}">
+          <td class="sheet-date-cell" title="${escHtml(sess.eventTitle)} (${escHtml(sess.timeLabel)}, ${sess.durationMin}分鐘)">
+            <div class="date-main">${escHtml(sess.dateDisplay)}</div>
+            <div class="date-sub">${escHtml(sess.timeLabel)} · ${sess.durationMin}m</div>
+          </td>
+          ${isMergedMulti ? `<td class="text-center">${escHtml(sess.studentName)}</td>` : ''}
+          <td class="sheet-amount-cell">
+            <div class="cell-amount-wrap">
+              <input
+                type="number"
+                step="10"
+                class="sheet-cell-input amount-input"
+                data-card-id="${escHtml(card.cardId)}"
+                data-session-key="${escHtml(sess.sessionKey)}"
+                data-is-manual="${sess.isManual ? '1' : '0'}"
+                value="${sess.amount}"
+                title="可直接修改單堂金額"
+              />
+              ${sess.isCustomAmount ? `<button type="button" class="btn-reset-override" data-session-key="${escHtml(sess.sessionKey)}" title="還原為預設鐘點費 (${sess.defaultAmount})">↺</button>` : ''}
+            </div>
+          </td>
+          <td class="sheet-note-cell">
+            <div class="cell-note-wrap">
+              <input
+                type="text"
+                class="sheet-cell-input note-input"
+                data-card-id="${escHtml(card.cardId)}"
+                data-session-key="${escHtml(sess.sessionKey)}"
+                data-is-manual="${sess.isManual ? '1' : '0'}"
+                value="${escHtml(sess.note)}"
+                placeholder="備註..."
+              />
+              <button
+                type="button"
+                class="btn-exclude-session"
+                data-card-id="${escHtml(card.cardId)}"
+                data-session-key="${escHtml(sess.sessionKey)}"
+                data-is-manual="${sess.isManual ? '1' : '0'}"
+                title="${sess.isManual ? '刪除此筆手動補課' : '將此日標記為請假／不計費'}"
+              >✕</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+
+    const extraRowsHtml = card.extras.map((ex, idx) => `
+      <tr class="detail-extra-row">
+        <td class="sheet-extra-label-cell" ${isMergedMulti ? 'colspan="2"' : ''}>
+          <input
+            type="text"
+            class="sheet-cell-input extra-label-input"
+            data-card-id="${escHtml(card.cardId)}"
+            data-extra-idx="${idx}"
+            value="${escHtml(ex.label || '書費/其他費用')}"
+          />
+        </td>
+        <td class="sheet-extra-amount-cell">
+          <input
+            type="number"
+            step="10"
+            class="sheet-cell-input extra-amount-input"
+            data-card-id="${escHtml(card.cardId)}"
+            data-extra-idx="${idx}"
+            value="${ex.amount === '' || ex.amount == null ? '' : escHtml(ex.amount)}"
+            placeholder="0"
+          />
+        </td>
+        <td class="sheet-extra-note-cell">
+          <div class="cell-note-wrap">
+            <input
+              type="text"
+              class="sheet-cell-input extra-note-input"
+              data-card-id="${escHtml(card.cardId)}"
+              data-extra-idx="${idx}"
+              value="${escHtml(ex.note || '')}"
+              placeholder="教材或費用說明..."
+            />
+            ${card.extras.length > 1 ? `<button type="button" class="btn-remove-extra" data-card-id="${escHtml(card.cardId)}" data-extra-idx="${idx}" title="刪除此費用列">✕</button>` : ''}
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    const excludedRestoreHtml = card.excludedSessions.length > 0
+      ? `<div class="excluded-Hint">
+          <span>已排除不計費課堂（請假）：</span>
+          ${card.excludedSessions.map((ex) => `
+            <button type="button" class="chip-restore-session" data-session-key="${escHtml(ex.sessionKey)}" title="點擊恢復計費">
+              ↩ 恢復 ${escHtml(ex.dateShortLabel)} (${escHtml(ex.studentName)})
+            </button>
+          `).join('')}
+        </div>`
+      : '';
+
+    return `
+      <div class="stu-rate-bars">${stuRatePills}</div>
+      <div class="spreadsheet-frame">
+        <table class="classic-detail-sheet">
+          <thead>
+            <tr>
+              <th colspan="${colSpanAll}" class="classic-purple-header">${escHtml(courseTitleText)}</th>
+            </tr>
+            <tr>
+              <th colspan="${colSpanAll}" class="classic-purple-subheader">學生：${escHtml(card.studentLabel)}</th>
+            </tr>
+            <tr class="classic-gray-cols">
+              <th>上課日期</th>
+              ${isMergedMulti ? '<th>學生</th>' : ''}
+              <th>${escHtml(card.rateHeaderLabel)}</th>
+              <th>其他</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sessionRowsHtml}
+            ${extraRowsHtml}
+          </tbody>
+          <tfoot>
+            <tr class="classic-blue-total">
+              <td ${isMergedMulti ? 'colspan="2"' : ''}>合計</td>
+              <td class="classic-total-num">${formatMoney(card.totalAmount)}</td>
+              <td class="classic-total-meta">共 ${card.sessions.length} 堂課</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      ${excludedRestoreHtml}
+    `;
+  }
+
+  function renderStudentsConfigTable() {
+    const tbody = document.getElementById('studentsConfigBody');
+    if (state.students.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="8" class="empty-cell">尚未建立任何學生規則。你可以先同步 Google 日曆自動偵測，或點右上角「➕ 新增學生」手動建立。</td>
+        </tr>
+      `;
+    } else {
+      tbody.innerHTML = state.students.map((s) => `
+        <tr data-stu-id="${escHtml(s.id)}">
+          <td><strong>${escHtml(s.name)}</strong>${s.summaryLabel && s.summaryLabel !== s.name ? `<div class="sub-hint">總表簡稱：${escHtml(s.summaryLabel)}</div>` : ''}</td>
+          <td>${escHtml(s.courseName || '—')}</td>
+          <td>
+            <div class="kw-tags">
+              ${(s.keywords || []).map((k) => `<span class="kw-tag">${escHtml(k)}</span>`).join('')}
+            </div>
+          </td>
+          <td>
+            <select class="select-xs cfg-mode-select" data-stu-id="${escHtml(s.id)}">
+              <option value="per_session" ${s.pricingMode === 'per_session' ? 'selected' : ''}>每堂固定金額</option>
+              <option value="by_duration" ${s.pricingMode === 'by_duration' ? 'selected' : ''}>依 60m 時長換算</option>
+            </select>
+          </td>
+          <td>
+            <input type="number" min="0" step="50" class="inline-rate-input cfg-rate-input" data-stu-id="${escHtml(s.id)}" value="${s.rate === '' || s.rate == null ? '' : escHtml(s.rate)}" placeholder="填金額" />
+          </td>
+          <td>
+            <input type="text" class="inline-group-input cfg-group-input" data-stu-id="${escHtml(s.id)}" value="${escHtml(s.groupName || '')}" placeholder="如：燦燦、伯寧" />
+          </td>
+          <td>
+            <select class="select-xs cfg-gmode-select" data-stu-id="${escHtml(s.id)}" ${!s.groupName ? 'disabled' : ''}>
+              <option value="separate_detail_merged_summary" ${s.groupDetailMode !== 'merged_both' ? 'selected' : ''}>獨立明細＋總表合併</option>
+              <option value="merged_both" ${s.groupDetailMode === 'merged_both' ? 'selected' : ''}>同張家庭明細＋總表合併</option>
+            </select>
+          </td>
+          <td class="nowrap">
+            <button type="button" class="btn btn-xs btn-outline btn-edit-stu-modal" data-stu-id="${escHtml(s.id)}">編輯</button>
+            <button type="button" class="btn btn-xs btn-ghost text-danger btn-delete-stu" data-stu-id="${escHtml(s.id)}">刪除</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    const igBox = document.getElementById('ignoredKeywordsBox');
+    const igChips = document.getElementById('ignoredChips');
+    if (state.ignoredEventTitles && state.ignoredEventTitles.length > 0) {
+      igBox.classList.remove('hidden');
+      igChips.innerHTML = state.ignoredEventTitles.map((kw) => `
+        <span class="ignored-chip">
+          ${escHtml(kw)}
+          <button type="button" class="btn-remove-ignored" data-kw="${escHtml(kw)}" title="移除忽略">✕</button>
+        </span>
+      `).join('');
+    } else {
+      igBox.classList.add('hidden');
+    }
+  }
+
+  // =========================================================================
+  // Google 日曆同步流程與 Modal 互動
+  // =========================================================================
+
+  function openModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('hidden');
+  }
+
+  function closeModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  }
+
+  function openSyncSettingsModal() {
+    document.getElementById('inputGoogleClientId').value = state.clientId || '';
+    document.getElementById('currentOriginCode').textContent = window.location.origin;
+    renderCalendarChecklistInModal();
+    openModal('syncModal');
+  }
+
+  function renderCalendarChecklistInModal() {
+    const sec = document.getElementById('calendarSelectSection');
+    const listEl = document.getElementById('calendarChecklist');
+    const tokenRec = window.GoogleCalendarSync.getSavedToken(state.clientId);
+
+    if (!tokenRec && (!state.cachedCalendars || state.cachedCalendars.length === 0)) {
+      sec.classList.add('hidden');
+      return;
+    }
+    sec.classList.remove('hidden');
+
+    const selectedSet = new Set((state.selectedCalendars || []).map((c) => c.id));
+    const cals = state.cachedCalendars || [];
+
+    if (cals.length === 0) {
+      listEl.innerHTML = `<div class="field-hint">正在讀取日曆清單，請點「🔄 重新整理清單」...</div>`;
+      return;
+    }
+
+    listEl.innerHTML = cals.map((c) => {
+      const checked = selectedSet.has(c.id);
+      return `
+        <label class="cal-check-item ${checked ? 'checked' : ''}">
+          <input type="checkbox" class="cal-item-cb" value="${escHtml(c.id)}" data-summary="${escHtml(c.summary)}" ${checked ? 'checked' : ''} />
+          <span class="cal-color-dot" style="background:${escHtml(c.backgroundColor)}"></span>
+          <span class="cal-item-name">${escHtml(c.summary)}</span>
+          ${c.primary ? '<span class="cal-primary-tag">主日曆</span>' : ''}
+        </label>
+      `;
+    }).join('');
+  }
+
+  async function handleGoogleLoginAndSync(forceOpenModalIfNoCal = true) {
+    if (!state.clientId) {
+      openSyncSettingsModal();
+      showToast('請先填入 Google OAuth Client ID（內附 2 分鐘取得步驟）或直接匯入 .ics 日曆檔！', 'info');
+      return;
+    }
+
+    try {
+      let tokenRec = window.GoogleCalendarSync.getSavedToken(state.clientId);
+      if (!tokenRec) {
+        tokenRec = await window.GoogleCalendarSync.signInWithGoogle(state.clientId, false);
+      }
+
+      // 取得子日曆清單
+      const cals = await window.GoogleCalendarSync.fetchCalendarList(tokenRec.accessToken);
+      state.cachedCalendars = cals;
+
+      // 若尚未選擇過任何子日曆，智慧預選名稱含「家教」的子日曆，否則開啟清單讓使用者勾選
+      if (!state.selectedCalendars || state.selectedCalendars.length === 0) {
+        const autoTutorCals = cals.filter((c) => /家教/.test(c.summary));
+        if (autoTutorCals.length > 0) {
+          state.selectedCalendars = autoTutorCals.map((c) => ({ id: c.id, summary: c.summary }));
+          saveState();
+        } else if (forceOpenModalIfNoCal) {
+          saveState();
+          openSyncSettingsModal();
+          showToast('登入成功！請勾選你要讀取的家教子日曆（例如：個人家教）。', 'info');
+          renderSyncStatus();
+          return;
+        }
+      }
+
+      saveState();
+      renderCalendarChecklistInModal();
+      await syncActiveMonthFromGoogle(tokenRec.accessToken);
+    } catch (err) {
+      showToast(err.message || '連結 Google 日曆失敗', 'error');
+    }
+  }
+
+  async function syncActiveMonthFromGoogle(existingAccessToken = '') {
+    if (!state.clientId) {
+      openSyncSettingsModal();
+      return;
+    }
+    if (!state.selectedCalendars || state.selectedCalendars.length === 0) {
+      openSyncSettingsModal();
+      showToast('請先勾選至少一個要同步的 Google 子日曆！', 'info');
+      return;
+    }
+
+    const syncBtn = document.getElementById('btnSyncCurrentMonth');
+    const origText = syncBtn.textContent;
+    syncBtn.disabled = true;
+    syncBtn.textContent = '⏳ 同步中...';
+
+    try {
+      let accessToken = existingAccessToken;
+      if (!accessToken) {
+        let tokenRec = window.GoogleCalendarSync.getSavedToken(state.clientId);
+        if (!tokenRec) {
+          tokenRec = await window.GoogleCalendarSync.signInWithGoogle(state.clientId, false);
+        }
+        accessToken = tokenRec.accessToken;
+      }
+
+      const { activeYear: y, activeMonth: m } = state;
+      const events = await window.GoogleCalendarSync.fetchMonthEvents(accessToken, state.selectedCalendars, y, m);
+
+      if (state.isDemoMode) {
+        state.isDemoMode = false;
+        state.students = [];
+        state.eventsByMonth = {};
+        state.monthAdjustments = {};
+      }
+
+      const ym = ymKey(y, m);
+      state.eventsByMonth[ym] = events;
+      const now = new Date();
+      state.lastSyncByMonth[ym] = `${now.getMonth() + 1}/${now.getDate()} ${format2(now.getHours())}:${format2(now.getMinutes())}`;
+      saveState();
+      renderAll();
+      showToast(`已成功同步 ${y}年${m}月 共 ${events.length} 筆日曆行程！`, 'success');
+    } catch (err) {
+      showToast(err.message || '同步本月行程失敗', 'error');
+    } finally {
+      syncBtn.disabled = false;
+      syncBtn.textContent = origText;
+    }
+  }
+
+  // --- 切換月份（若已登入 Google 且該月尚未抓過行程，自動從 Google 同步！） ---
+  async function changeActiveMonth(newYear, newMonth) {
+    let y = newYear;
+    let m = newMonth;
+    while (m < 1) { m += 12; y -= 1; }
+    while (m > 12) { m -= 12; y += 1; }
+    state.activeYear = y;
+    state.activeMonth = m;
+    saveState();
+    renderAll();
+
+    const ym = ymKey(y, m);
+    const tokenRec = window.GoogleCalendarSync.getSavedToken(state.clientId);
+    if (tokenRec && state.selectedCalendars.length > 0 && !state.eventsByMonth[ym] && !state.isDemoMode) {
+      await syncActiveMonthFromGoogle(tokenRec.accessToken);
+    }
+  }
+
+  // --- 複製文字明細（方便貼 LINE 給家長） ---
+  function formatCardAsPlainText(card, year, month) {
+    const header = card.courseTitle
+      ? `【${year}年${month}月份${card.courseTitle}費用明細】`
+      : `【${year}年${month}月份課程費用明細】`;
+    const lines = [header, `學生：${card.studentLabel}`, '──────────────'];
+    const isMergedMulti = card.isMergedFamily && card.sessions.some((s) => s.studentName !== card.studentLabel);
+
+    card.sessions.forEach((s) => {
+      const who = isMergedMulti ? ` (${s.studentName})` : '';
+      const note = s.note ? ` [${s.note}]` : '';
+      lines.push(`• ${s.dateShortLabel}${who}：NT$ ${formatMoney(s.amount)}${note}`);
+    });
+
+    card.extras.forEach((ex) => {
+      if (ex.amount !== '' && ex.amount != null && Number(ex.amount) !== 0) {
+        const note = ex.note ? ` (${ex.note})` : '';
+        lines.push(`• ${ex.label || '書費/其他費用'}${note}：NT$ ${formatMoney(ex.amount)}`);
+      }
+    });
+
+    lines.push('──────────────');
+    lines.push(`合計（共 ${card.sessions.length} 堂）：NT$ ${formatMoney(card.totalAmount)}`);
+    return lines.join('\n');
+  }
+
+  async function copyTextToClipboard(text, okMsg) {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(okMsg, 'success');
+    } catch (_) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      showToast(okMsg, 'success');
+    }
+  }
+
+  // =========================================================================
+  // 事件綁定 (Event Delegation + Modal Controls)
+  // =========================================================================
+
+  function bindEvents() {
+    // IME 安全 Enter 送出輔助：輸入框按 Enter (非注音選字中) 自動觸發 blur -> change
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) {
+        const tag = e.target && e.target.tagName;
+        if (tag === 'INPUT' && e.target.form == null) {
+          e.preventDefault();
+          e.target.blur();
+        }
+      }
+      if (e.key === 'Escape') {
+        ['syncModal', 'studentModal', 'backupModal'].forEach(closeModal);
+      }
+    });
+
+    // 關閉各 Modal
+    document.querySelectorAll('[data-close-modal]').forEach((btn) => {
+      btn.addEventListener('click', () => closeModal(btn.dataset.closeModal));
+    });
+    document.querySelectorAll('.modal-backdrop').forEach((bd) => {
+      bd.addEventListener('click', (e) => {
+        if (e.target === bd) bd.classList.add('hidden');
+      });
+    });
+
+    // 頂部導覽按鈕
+    document.getElementById('btnGoogleSignIn').addEventListener('click', () => handleGoogleLoginAndSync(true));
+    document.getElementById('syncStatusBadge').addEventListener('click', openSyncSettingsModal);
+    document.getElementById('btnOpenSyncModal').addEventListener('click', openSyncSettingsModal);
+    document.getElementById('btnWelcomeSync').addEventListener('click', () => handleGoogleLoginAndSync(true));
+    document.getElementById('btnWelcomeIcs').addEventListener('click', openSyncSettingsModal);
+
+    // 載入／退出範例資料
+    const loadDemoHandler = () => {
+      const { demoStudents, eventsByMonth } = window.IcsHelper.generateDemoDataset(state.activeYear, state.activeMonth);
+      state.isDemoMode = true;
+      state.students = demoStudents;
+      state.eventsByMonth = eventsByMonth;
+      state.monthAdjustments = {};
+      // 為東真那示範加一筆書費範例，也可隨時清除
+      const ym = ymKey(state.activeYear, state.activeMonth);
+      getMonthAdj(ym).cardExtras['stu_demo_s1'] = [{ id: 'ex1', label: '書費/其他費用', amount: '', note: '' }];
+      saveState();
+      closeModal('syncModal');
+      renderAll();
+      showToast('已載入範例家教資料！可自由切換月份、修改鐘點費或匯出 Excel (.xlsx)。', 'success');
+    };
+    document.getElementById('btnLoadDemo').addEventListener('click', loadDemoHandler);
+    document.getElementById('btnTriggerDemoFromModal').addEventListener('click', loadDemoHandler);
+
+    document.getElementById('btnExitDemo').addEventListener('click', () => {
+      state.isDemoMode = false;
+      state.students = [];
+      state.eventsByMonth = {};
+      state.monthAdjustments = {};
+      saveState();
+      renderAll();
+      showToast('已清空範例資料，現在可以連結你的 Google 日曆！', 'info');
+    });
+
+    // 匯出本月 Excel (.xlsx)
+    document.getElementById('btnExportXlsx').addEventListener('click', () => {
+      const report = window.__latestReport || buildMonthlyReport(state.activeYear, state.activeMonth);
+      if (report.detailCards.length === 0) {
+        showToast('目前尚無學生明細資料可匯出，請先同步行程或新增學生！', 'error');
+        return;
+      }
+      const fname = window.XlsxExporter.exportMonthlyReportToXlsx(report);
+      showToast(`已匯出 Excel 檔案：${fname}`, 'success');
+    });
+
+    // 月份切換
+    document.getElementById('btnPrevMonth').addEventListener('click', () => changeActiveMonth(state.activeYear, state.activeMonth - 1));
+    document.getElementById('btnNextMonth').addEventListener('click', () => changeActiveMonth(state.activeYear, state.activeMonth + 1));
+    document.getElementById('monthPickerInput').addEventListener('change', (e) => {
+      const val = e.target.value;
+      if (/^\d{4}-\d{2}$/.test(val)) {
+        const [yy, mm] = val.split('-').map(Number);
+        changeActiveMonth(yy, mm);
+      }
+    });
+    document.getElementById('quickMonthTabs').addEventListener('click', (e) => {
+      const btn = e.target.closest('.ym-tab');
+      if (!btn) return;
+      changeActiveMonth(Number(btn.dataset.yy), Number(btn.dataset.mm));
+    });
+    document.getElementById('btnSyncCurrentMonth').addEventListener('click', () => syncActiveMonthFromGoogle());
+
+    // Sync Modal 內操作
+    document.getElementById('btnCopyOrigin').addEventListener('click', () => {
+      copyTextToClipboard(window.location.origin, `已複製來源網址：${window.location.origin}`);
+    });
+
+    document.getElementById('btnSaveAndLoginGoogle').addEventListener('click', async () => {
+      const cid = document.getElementById('inputGoogleClientId').value.trim();
+      if (!cid) {
+        showToast('請先貼上 Google OAuth Client ID', 'error');
+        return;
+      }
+      state.clientId = cid;
+      window.GoogleCalendarSync.clearToken();
+      saveState();
+      try {
+        const tokenRec = await window.GoogleCalendarSync.signInWithGoogle(cid, true);
+        const cals = await window.GoogleCalendarSync.fetchCalendarList(tokenRec.accessToken);
+        state.cachedCalendars = cals;
+        // 智慧預選名稱含「家教」的子日曆
+        if (state.selectedCalendars.length === 0) {
+          const tutorCals = cals.filter((c) => /家教/.test(c.summary));
+          if (tutorCals.length > 0) {
+            state.selectedCalendars = tutorCals.map((c) => ({ id: c.id, summary: c.summary }));
+          }
+        }
+        saveState();
+        renderCalendarChecklistInModal();
+        renderSyncStatus();
+        showToast('成功連結 Google 帳號！請確認下方勾選的子日曆並點「立即抓取」。', 'success');
+      } catch (err) {
+        showToast(err.message || 'Google 登入失敗', 'error');
+      }
+    });
+
+    document.getElementById('btnRefreshCalendars').addEventListener('click', async () => {
+      try {
+        let tokenRec = window.GoogleCalendarSync.getSavedToken(state.clientId);
+        if (!tokenRec) tokenRec = await window.GoogleCalendarSync.signInWithGoogle(state.clientId, false);
+        state.cachedCalendars = await window.GoogleCalendarSync.fetchCalendarList(tokenRec.accessToken);
+        saveState();
+        renderCalendarChecklistInModal();
+        showToast('已更新子日曆清單', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+
+    document.getElementById('btnGoogleSignOut').addEventListener('click', () => {
+      window.GoogleCalendarSync.clearToken();
+      renderCalendarChecklistInModal();
+      renderSyncStatus();
+      showToast('已登出 Google 授權工作階段', 'info');
+    });
+
+    document.getElementById('calendarChecklist').addEventListener('change', () => {
+      const checked = Array.from(document.querySelectorAll('.cal-item-cb:checked')).map((cb) => ({
+        id: cb.value,
+        summary: cb.dataset.summary || cb.value
+      }));
+      state.selectedCalendars = checked;
+      saveState();
+      renderCalendarChecklistInModal();
+      renderSyncStatus();
+    });
+
+    document.getElementById('btnSyncSelectedCalendars').addEventListener('click', async () => {
+      const checked = Array.from(document.querySelectorAll('.cal-item-cb:checked')).map((cb) => ({
+        id: cb.value,
+        summary: cb.dataset.summary || cb.value
+      }));
+      if (checked.length === 0) {
+        showToast('請至少勾選一個子日曆（例如：個人家教）', 'error');
+        return;
+      }
+      state.selectedCalendars = checked;
+      saveState();
+      closeModal('syncModal');
+      await syncActiveMonthFromGoogle();
+    });
+
+    // 匯入 .ics 日曆檔案
+    document.getElementById('inputIcsFile').addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const { calName, byMonth } = window.IcsHelper.parseIcsContent(text);
+        const monthKeys = Object.keys(byMonth).sort();
+        if (monthKeys.length === 0) {
+          showToast('此 .ics 檔案中沒有找到有效行程', 'error');
+          return;
+        }
+        if (state.isDemoMode) {
+          state.isDemoMode = false;
+          state.students = [];
+          state.eventsByMonth = {};
+          state.monthAdjustments = {};
+        }
+        let totalImported = 0;
+        const stamp = `匯入自 ${calName}`;
+        monthKeys.forEach((ym) => {
+          state.eventsByMonth[ym] = byMonth[ym];
+          state.lastSyncByMonth[ym] = stamp;
+          totalImported += byMonth[ym].length;
+        });
+
+        // 若目前選取的月份剛好沒有行程，跳轉到最近有行程的月份
+        const curYm = ymKey(state.activeYear, state.activeMonth);
+        if (!byMonth[curYm]) {
+          const latestYm = monthKeys[monthKeys.length - 1];
+          const [ly, lm] = latestYm.split('-').map(Number);
+          state.activeYear = ly;
+          state.activeMonth = lm;
+        }
+
+        state.selectedCalendars = [{ id: 'ics_import', summary: `${calName} (.ics)` }];
+        saveState();
+        closeModal('syncModal');
+        renderAll();
+        showToast(`成功匯入「${calName}」共 ${monthKeys.length} 個月份、${totalImported} 筆課程紀錄！`, 'success');
+      } catch (err) {
+        showToast(`讀取 .ics 失敗：${err.message}`, 'error');
+      } finally {
+        e.target.value = '';
+      }
+    });
+
+    // 未歸戶行程快速建立
+    document.getElementById('btnAutoCreateAll').addEventListener('click', () => {
+      const items = Array.from(document.querySelectorAll('#unmatchedList .unmatched-item'));
+      let added = 0;
+      items.forEach((item) => {
+        const cb = item.querySelector('.unmatched-cb');
+        if (!cb || !cb.checked) return;
+        const name = item.querySelector('.unmatched-name-input').value.trim();
+        const rateStr = item.querySelector('.unmatched-rate-input').value.trim();
+        const course = cb.dataset.course || '';
+        if (!name) return;
+        state.students.push({
+          id: uid('stu'),
+          name,
+          summaryLabel: '',
+          courseName: course,
+          keywords: Array.from(new Set([name, cb.dataset.name].filter(Boolean))),
+          pricingMode: 'per_session',
+          rate: rateStr === '' ? '' : Math.round(Number(rateStr) || 0),
+          groupName: '',
+          groupDetailMode: 'separate_detail_merged_summary'
+        });
+        added++;
+      });
+      if (added > 0) {
+        saveState();
+        renderAll();
+        showToast(`已新增 ${added} 位學生並自動帶入本月上課日期！請確認鐘點費金額。`, 'success');
+      }
+    });
+
+    document.getElementById('unmatchedList').addEventListener('click', (e) => {
+      const createBtn = e.target.closest('.btn-create-single');
+      if (createBtn) {
+        const item = createBtn.closest('.unmatched-item');
+        const cb = item.querySelector('.unmatched-cb');
+        const name = item.querySelector('.unmatched-name-input').value.trim();
+        const rateStr = item.querySelector('.unmatched-rate-input').value.trim();
+        if (!name) return;
+        const newStu = {
+          id: uid('stu'),
+          name,
+          summaryLabel: '',
+          courseName: cb.dataset.course || '',
+          keywords: Array.from(new Set([name, cb.dataset.name].filter(Boolean))),
+          pricingMode: 'per_session',
+          rate: rateStr === '' ? '' : Math.round(Number(rateStr) || 0),
+          groupName: '',
+          groupDetailMode: 'separate_detail_merged_summary'
+        };
+        state.students.push(newStu);
+        state.selectedCardId = `stu_${newStu.id}`;
+        saveState();
+        renderAll();
+        showToast(`已新增學生「${name}」！`, 'success');
+        return;
+      }
+
+      const igBtn = e.target.closest('.btn-ignore-title');
+      if (igBtn) {
+        const kw = igBtn.dataset.keyword;
+        if (kw && !state.ignoredEventTitles.includes(kw)) {
+          state.ignoredEventTitles.push(kw);
+          saveState();
+          renderAll();
+          showToast(`已忽略含「${kw}」的行程（可於學生設定頁下方恢復）`, 'info');
+        }
+      }
+    });
+
+    document.getElementById('unmatchedList').addEventListener('change', (e) => {
+      const mergeSel = e.target.closest('.unmatched-merge-select');
+      if (mergeSel && mergeSel.value) {
+        const stu = state.students.find((s) => s.id === mergeSel.value);
+        const kw = mergeSel.dataset.keyword;
+        if (stu && kw) {
+          if (!stu.keywords.includes(kw)) stu.keywords.push(kw);
+          saveState();
+          renderAll();
+          showToast(`已將關鍵字「${kw}」歸入學生「${stu.name}」！`, 'success');
+        }
+      }
+    });
+
+    // 主視圖頁籤切換
+    document.querySelectorAll('.view-tab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.activeTab = btn.dataset.tab;
+        saveState();
+        renderTabsState(window.__latestReport || buildMonthlyReport(state.activeYear, state.activeMonth));
+      });
+    });
+
+    // 左欄「每月薪資總表」點擊切換右側明細、快速填鐘點費、勾選已收款
+    document.getElementById('summaryTableBody').addEventListener('click', (e) => {
+      const tr = e.target.closest('.summary-row');
+      if (!tr || !tr.dataset.firstCard) return;
+      state.selectedCardId = tr.dataset.firstCard;
+      saveState();
+      renderOverviewSplit(window.__latestReport || buildMonthlyReport(state.activeYear, state.activeMonth));
+    });
+
+    document.getElementById('summaryTableBody').addEventListener('change', (e) => {
+      if (e.target.classList.contains('quick-rate-input')) {
+        const stu = state.students.find((s) => s.id === e.target.dataset.stuId);
+        if (stu) {
+          stu.rate = e.target.value === '' ? '' : Math.max(0, Math.round(Number(e.target.value) || 0));
+          saveState();
+          renderAll();
+        }
+      } else if (e.target.classList.contains('paid-checkbox')) {
+        const adj = getMonthAdj(ymKey(state.activeYear, state.activeMonth));
+        adj.paidMap[e.target.dataset.sumKey] = e.target.checked;
+        saveState();
+        renderAll();
+      }
+    });
+
+    document.getElementById('btnCopySummaryText').addEventListener('click', () => {
+      const report = window.__latestReport || buildMonthlyReport(state.activeYear, state.activeMonth);
+      const lines = [`【${report.year}年${report.month}月 每月家教薪資收入總表】`, '──────────────'];
+      report.summaryRows.forEach((r, idx) => {
+        lines.push(`${idx + 1}. ${r.label}（${r.sessionCount}堂）：NT$ ${formatMoney(r.totalAmount)}`);
+      });
+      lines.push('──────────────');
+      lines.push(`當月合計：NT$ ${formatMoney(report.grandTotal)}`);
+      copyTextToClipboard(lines.join('\n'), '已複製當月家教薪資總表文字！');
+    });
+
+    // 右欄明細下拉切換與按鈕
+    document.getElementById('activeCardSelect').addEventListener('change', (e) => {
+      state.selectedCardId = e.target.value;
+      saveState();
+      renderOverviewSplit(window.__latestReport || buildMonthlyReport(state.activeYear, state.activeMonth));
+    });
+
+    document.getElementById('btnAddManualSession').addEventListener('click', () => {
+      const report = window.__latestReport || buildMonthlyReport(state.activeYear, state.activeMonth);
+      const card = report.detailCards.find((c) => c.cardId === state.selectedCardId);
+      if (!card) return;
+      const adj = getMonthAdj(report.ym);
+      if (!adj.manualSessions[card.cardId]) adj.manualSessions[card.cardId] = [];
+      const firstStu = card.students[0];
+      const defaultDate = `${report.year}-${format2(report.month)}-01`;
+      const inputDate = window.prompt('請輸入補登課堂日期 (YYYY-MM-DD)：', defaultDate);
+      if (!inputDate) return;
+      adj.manualSessions[card.cardId].push({
+        id: uid('man'),
+        dateStr: inputDate.trim(),
+        studentName: firstStu.name,
+        durationMin: 60,
+        amount: Number(firstStu.rate) || 0,
+        note: '手動補登'
+      });
+      saveState();
+      renderAll();
+    });
+
+    document.getElementById('btnAddExtraRow').addEventListener('click', () => {
+      const report = window.__latestReport || buildMonthlyReport(state.activeYear, state.activeMonth);
+      const card = report.detailCards.find((c) => c.cardId === state.selectedCardId);
+      if (!card) return;
+      const adj = getMonthAdj(report.ym);
+      const current = adj.cardExtras[card.cardId] && adj.cardExtras[card.cardId].length > 0
+        ? adj.cardExtras[card.cardId]
+        : [{ id: 'default_extra', label: '書費/其他費用', amount: '', note: '' }];
+      current.push({ id: uid('ex'), label: '書費/其他費用', amount: '', note: '' });
+      adj.cardExtras[card.cardId] = current;
+      saveState();
+      renderAll();
+    });
+
+    document.getElementById('btnCopyCardText').addEventListener('click', () => {
+      const report = window.__latestReport || buildMonthlyReport(state.activeYear, state.activeMonth);
+      const card = report.detailCards.find((c) => c.cardId === state.selectedCardId);
+      if (!card) return;
+      copyTextToClipboard(formatCardAsPlainText(card, report.year, report.month), `已複製「${card.studentLabel}」的費用明細文字，可直接貼上 LINE！`);
+    });
+
+    // 委派處理所有明細表內（Overview 右欄 + Details 網格）的行內編輯與按鈕
+    const handleDetailChange = (e) => {
+      const t = e.target;
+      const ym = ymKey(state.activeYear, state.activeMonth);
+      const adj = getMonthAdj(ym);
+
+      if (t.classList.contains('stu-base-rate-input')) {
+        const stu = state.students.find((s) => s.id === t.dataset.stuId);
+        if (stu) {
+          stu.rate = t.value === '' ? '' : Math.max(0, Math.round(Number(t.value) || 0));
+          saveState();
+          renderAll();
+        }
+        return;
+      }
+
+      if (t.classList.contains('stu-mode-select')) {
+        const stu = state.students.find((s) => s.id === t.dataset.stuId);
+        if (stu) {
+          stu.pricingMode = t.value;
+          saveState();
+          renderAll();
+        }
+        return;
+      }
+
+      if (t.classList.contains('amount-input')) {
+        const sKey = t.dataset.sessionKey;
+        const cId = t.dataset.cardId;
+        if (t.dataset.isManual === '1') {
+          const item = (adj.manualSessions[cId] || []).find((m) => m.id === sKey);
+          if (item) item.amount = Math.round(Number(t.value) || 0);
+        } else {
+          if (!adj.sessionOverrides[sKey]) adj.sessionOverrides[sKey] = {};
+          adj.sessionOverrides[sKey].customAmount = Math.round(Number(t.value) || 0);
+        }
+        saveState();
+        renderAll();
+        return;
+      }
+
+      if (t.classList.contains('note-input')) {
+        const sKey = t.dataset.sessionKey;
+        const cId = t.dataset.cardId;
+        if (t.dataset.isManual === '1') {
+          const item = (adj.manualSessions[cId] || []).find((m) => m.id === sKey);
+          if (item) item.note = t.value;
+        } else {
+          if (!adj.sessionOverrides[sKey]) adj.sessionOverrides[sKey] = {};
+          adj.sessionOverrides[sKey].note = t.value;
+        }
+        saveState();
+        renderAll();
+        return;
+      }
+
+      if (t.classList.contains('extra-label-input') || t.classList.contains('extra-amount-input') || t.classList.contains('extra-note-input')) {
+        const cId = t.dataset.cardId;
+        const idx = Number(t.dataset.extraIdx);
+        if (!adj.cardExtras[cId] || adj.cardExtras[cId].length === 0) {
+          adj.cardExtras[cId] = [{ id: 'default_extra', label: '書費/其他費用', amount: '', note: '' }];
+        }
+        const ex = adj.cardExtras[cId][idx];
+        if (ex) {
+          if (t.classList.contains('extra-label-input')) ex.label = t.value;
+          if (t.classList.contains('extra-amount-input')) ex.amount = t.value === '' ? '' : Math.round(Number(t.value) || 0);
+          if (t.classList.contains('extra-note-input')) ex.note = t.value;
+          saveState();
+          renderAll();
+        }
+      }
+    };
+
+    const handleDetailClick = (e) => {
+      const ym = ymKey(state.activeYear, state.activeMonth);
+      const adj = getMonthAdj(ym);
+
+      const editModalBtn = e.target.closest('.btn-edit-stu-modal');
+      if (editModalBtn) {
+        openStudentModal(editModalBtn.dataset.stuId);
+        return;
+      }
+
+      const resetBtn = e.target.closest('.btn-reset-override');
+      if (resetBtn) {
+        const sKey = resetBtn.dataset.sessionKey;
+        if (adj.sessionOverrides[sKey]) {
+          delete adj.sessionOverrides[sKey].customAmount;
+          saveState();
+          renderAll();
+        }
+        return;
+      }
+
+      const exBtn = e.target.closest('.btn-exclude-session');
+      if (exBtn) {
+        const sKey = exBtn.dataset.sessionKey;
+        const cId = exBtn.dataset.cardId;
+        if (exBtn.dataset.isManual === '1') {
+          adj.manualSessions[cId] = (adj.manualSessions[cId] || []).filter((m) => m.id !== sKey);
+        } else {
+          if (!adj.sessionOverrides[sKey]) adj.sessionOverrides[sKey] = {};
+          adj.sessionOverrides[sKey].excluded = true;
+        }
+        saveState();
+        renderAll();
+        return;
+      }
+
+      const restoreBtn = e.target.closest('.chip-restore-session');
+      if (restoreBtn) {
+        const sKey = restoreBtn.dataset.sessionKey;
+        if (adj.sessionOverrides[sKey]) {
+          adj.sessionOverrides[sKey].excluded = false;
+          saveState();
+          renderAll();
+        }
+        return;
+      }
+
+      const rmExtraBtn = e.target.closest('.btn-remove-extra');
+      if (rmExtraBtn) {
+        const cId = rmExtraBtn.dataset.cardId;
+        const idx = Number(rmExtraBtn.dataset.extraIdx);
+        if (Array.isArray(adj.cardExtras[cId])) {
+          adj.cardExtras[cId].splice(idx, 1);
+          saveState();
+          renderAll();
+        }
+        return;
+      }
+
+      const gridCopyBtn = e.target.closest('.btn-grid-copy');
+      if (gridCopyBtn) {
+        const report = window.__latestReport || buildMonthlyReport(state.activeYear, state.activeMonth);
+        const card = report.detailCards.find((c) => c.cardId === gridCopyBtn.dataset.cardId);
+        if (card) {
+          copyTextToClipboard(formatCardAsPlainText(card, report.year, report.month), `已複製「${card.studentLabel}」的明細文字！`);
+        }
+      }
+    };
+
+    document.getElementById('activeDetailContainer').addEventListener('change', handleDetailChange);
+    document.getElementById('activeDetailContainer').addEventListener('click', handleDetailClick);
+    document.getElementById('viewDetails').addEventListener('change', handleDetailChange);
+    document.getElementById('viewDetails').addEventListener('click', handleDetailClick);
+
+    // 學生管理視圖 (viewStudents) 與 Modal
+    document.getElementById('btnAddStudentQuick').addEventListener('click', () => openStudentModal(''));
+    document.getElementById('btnAddStudentTop').addEventListener('click', () => openStudentModal(''));
+
+    document.getElementById('studentsConfigBody').addEventListener('change', (e) => {
+      const t = e.target;
+      const stu = state.students.find((s) => s.id === t.dataset.stuId);
+      if (!stu) return;
+      if (t.classList.contains('cfg-mode-select')) stu.pricingMode = t.value;
+      else if (t.classList.contains('cfg-rate-input')) stu.rate = t.value === '' ? '' : Math.max(0, Math.round(Number(t.value) || 0));
+      else if (t.classList.contains('cfg-group-input')) stu.groupName = t.value.trim();
+      else if (t.classList.contains('cfg-gmode-select')) {
+        stu.groupDetailMode = t.value;
+        // 同步同一家庭群組的呈現模式，避免同群組設定不一致
+        if (stu.groupName) {
+          state.students.forEach((other) => {
+            if (other.groupName === stu.groupName) other.groupDetailMode = t.value;
+          });
+        }
+      }
+      saveState();
+      renderAll();
+    });
+
+    document.getElementById('studentsConfigBody').addEventListener('click', (e) => {
+      const editBtn = e.target.closest('.btn-edit-stu-modal');
+      if (editBtn) {
+        openStudentModal(editBtn.dataset.stuId);
+        return;
+      }
+      const delBtn = e.target.closest('.btn-delete-stu');
+      if (delBtn) {
+        const stu = state.students.find((s) => s.id === delBtn.dataset.stuId);
+        if (stu && window.confirm(`確定要刪除學生「${stu.name}」的計費規則嗎？`)) {
+          state.students = state.students.filter((s) => s.id !== stu.id);
+          saveState();
+          renderAll();
+        }
+      }
+    });
+
+    document.getElementById('ignoredChips').addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-remove-ignored');
+      if (!btn) return;
+      state.ignoredEventTitles = state.ignoredEventTitles.filter((k) => k !== btn.dataset.kw);
+      saveState();
+      renderAll();
+    });
+
+    document.getElementById('studentForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const id = document.getElementById('stuFormId').value;
+      const name = document.getElementById('stuFormName').value.trim();
+      const courseName = document.getElementById('stuFormCourse').value.trim();
+      const keywords = document.getElementById('stuFormKeywords').value
+        .split(/[,，、]/)
+        .map((k) => k.trim())
+        .filter(Boolean);
+      const pricingMode = document.getElementById('stuFormPricingMode').value;
+      const rateVal = document.getElementById('stuFormRate').value;
+      const groupName = document.getElementById('stuFormGroup').value.trim();
+      const summaryLabel = document.getElementById('stuFormSummaryLabel').value.trim();
+      const groupDetailMode = document.getElementById('stuFormGroupMode').value;
+
+      if (!name || keywords.length === 0) {
+        showToast('請填寫學生姓名與至少一個比對關鍵字', 'error');
+        return;
+      }
+
+      const payload = {
+        id: id || uid('stu'),
+        name,
+        summaryLabel,
+        courseName,
+        keywords,
+        pricingMode,
+        rate: rateVal === '' ? '' : Math.max(0, Math.round(Number(rateVal) || 0)),
+        groupName,
+        groupDetailMode
+      };
+
+      if (id) {
+        const idx = state.students.findIndex((s) => s.id === id);
+        if (idx >= 0) state.students[idx] = payload;
+      } else {
+        state.students.push(payload);
+        state.selectedCardId = groupName && groupDetailMode === 'merged_both' ? `grp_${groupName}` : `stu_${payload.id}`;
+      }
+
+      if (groupName) {
+        state.students.forEach((other) => {
+          if (other.groupName === groupName) other.groupDetailMode = groupDetailMode;
+        });
+      }
+
+      saveState();
+      closeModal('studentModal');
+      renderAll();
+      showToast(`已儲存學生「${name}」設定`, 'success');
+    });
+
+    // 備份與還原 Modal
+    document.getElementById('btnBackupModal').addEventListener('click', () => openModal('backupModal'));
+
+    document.getElementById('btnDownloadBackup').addEventListener('click', () => {
+      const backupStr = JSON.stringify(state, null, 2);
+      const blob = new Blob([backupStr], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `家教結算工具備份_${ymCompact(state.activeYear, state.activeMonth)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, 400);
+      showToast('已下載備份檔案 (.json)', 'success');
+    });
+
+    document.getElementById('inputRestoreBackup').addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      try {
+        const parsed = JSON.parse(await file.text());
+        if (!Array.isArray(parsed.students)) {
+          throw new Error('備份檔案格式不正確');
+        }
+        state = Object.assign(getDefaultState(), parsed);
+        saveState();
+        closeModal('backupModal');
+        renderAll();
+        showToast('已成功還原所有學生名單與帳務設定！', 'success');
+      } catch (err) {
+        showToast(`還原失敗：${err.message}`, 'error');
+      } finally {
+        e.target.value = '';
+      }
+    });
+
+    document.getElementById('btnResetAllData').addEventListener('click', () => {
+      if (!window.confirm('確定要清空瀏覽器內儲存的所有學生設定與行程快取嗎？（建議先匯出備份）')) return;
+      window.GoogleCalendarSync.clearToken();
+      localStorage.removeItem(CFG.STORAGE_KEY);
+      state = getDefaultState();
+      closeModal('backupModal');
+      renderAll();
+      showToast('已重設所有本機資料', 'info');
+    });
+  }
+
+  function openStudentModal(stuId) {
+    const stu = state.students.find((s) => s.id === stuId);
+    document.getElementById('studentModalTitle').textContent = stu ? `✏️ 編輯學生：${stu.name}` : '👩‍🏫 新增學生計費規則';
+    document.getElementById('stuFormId').value = stu ? stu.id : '';
+    document.getElementById('stuFormName').value = stu ? stu.name : '';
+    document.getElementById('stuFormCourse').value = stu ? (stu.courseName || '') : '';
+    document.getElementById('stuFormKeywords').value = stu ? (stu.keywords || []).join(', ') : '';
+    document.getElementById('stuFormPricingMode').value = stu ? (stu.pricingMode || 'per_session') : 'per_session';
+    document.getElementById('stuFormRate').value = stu && stu.rate !== '' && stu.rate != null ? stu.rate : '';
+    document.getElementById('stuFormGroup').value = stu ? (stu.groupName || '') : '';
+    document.getElementById('stuFormSummaryLabel').value = stu ? (stu.summaryLabel || '') : '';
+    document.getElementById('stuFormGroupMode').value = stu ? (stu.groupDetailMode || 'separate_detail_merged_summary') : 'separate_detail_merged_summary';
+    openModal('studentModal');
+    setTimeout(() => document.getElementById('stuFormName').focus(), 50);
+  }
+
+  // 當姓名輸入框自動帶入關鍵字（僅新增且關鍵字為空時貼心輔助）
+  document.addEventListener('DOMContentLoaded', () => {
+    const nameInput = document.getElementById('stuFormName');
+    const kwInput = document.getElementById('stuFormKeywords');
+    nameInput.addEventListener('blur', () => {
+      if (!kwInput.value.trim() && nameInput.value.trim()) {
+        kwInput.value = nameInput.value.trim();
+      }
+    });
+
+    bindEvents();
+    renderAll();
+  });
+})();
+
+</script>
+</body>
+</html>
