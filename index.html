@@ -1769,6 +1769,7 @@ body {
 }
 
 </style>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
   <!-- 頂部導覽列 -->
@@ -2016,85 +2017,83 @@ body {
     </section>
   </main>
 
-  <!-- Modal 1: Google 日曆連結設定 & 子日曆勾選 & .ics 匯入 -->
+  <!-- Modal 1: Google 日曆連結與子日曆勾選 & .ics 匯入 -->
   <div id="syncModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="syncModalTitle">
     <div class="modal-card modal-lg">
       <div class="modal-header">
-        <h3 id="syncModalTitle">⚙️ Google 行事曆同步設定</h3>
+        <h3 id="syncModalTitle">🗓️ 選擇 Google 家教日曆來源</h3>
         <button type="button" class="modal-close" data-close-modal="syncModal" aria-label="關閉">✕</button>
       </div>
 
       <div class="modal-body">
-        <!-- 區塊 A：Google OAuth Client ID 與登入 -->
+        <!-- 區塊 A：直接登入 Google 帳號與選取子日曆 -->
         <div class="setting-block">
           <div class="setting-block-title">
-            <span class="badge-step">方式 1（主推）</span>
-            <strong>Google 帳號一鍵登入同步（即時讀取子日曆）</strong>
+            <span class="badge-step">主推 · 最方便</span>
+            <strong>連結你的 Google 帳號（自動讀取上課日期）</strong>
           </div>
 
-          <label class="field-label" for="inputGoogleClientId">
-            Google OAuth 2.0 用戶端 ID (Web Client ID)
-          </label>
-          <div class="input-with-btn">
-            <input
-              id="inputGoogleClientId"
-              type="text"
-              class="text-input"
-              placeholder="例如：1234567890-abcdefg.apps.googleusercontent.com"
-              autocomplete="off"
-            />
-            <button id="btnSaveAndLoginGoogle" type="button" class="btn btn-primary">儲存並登入 Google</button>
+          <div id="googleNotSignedInBox" class="google-signin-hero">
+            <p class="field-hint" style="margin-top:0;margin-bottom:12px">
+              點擊下方按鈕選擇你的 Google 帳號登入，即可勾選你要計算的日曆（例如「<strong>個人家教</strong>」）。<br/>
+              🔒 僅使用 Google 官方唯讀權限（<code>calendar.readonly</code>），絕不會修改你的行事曆，資料也只存在你自己的瀏覽器中。
+            </p>
+            <button id="btnModalDirectGoogleLogin" type="button" class="btn btn-primary btn-lg">
+              🔗 使用 Google 帳號登入並選擇日曆
+            </button>
           </div>
-          <p class="field-hint">
-            🔒 純前端安全連線：授權僅在你的瀏覽器與 Google 官方伺服器之間進行（唯讀權限 <code>calendar.readonly</code>），絕不會修改你的行事曆，也不會傳送到任何第三方主機。
-          </p>
-
-          <details class="oauth-guide">
-            <summary>📖 如何免費取得自己的 Google Client ID？（只需 2 分鐘，附目前網址一鍵複製）</summary>
-            <ol class="guide-steps">
-              <li>前往 <a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" rel="noopener noreferrer">Google Cloud Console - Google Calendar API</a>，建立新專案並點擊「<strong>啟用 (Enable)</strong>」。</li>
-              <li>左側選單點「<strong>OAuth 同意畫面 (OAuth consent screen)</strong>」→ 選擇外部 (External) → 填入任意應用程式名稱（如 <code>家教結算工具</code>），並在「<strong>測試使用者 (Test users)</strong>」加入你自己的 Gmail 信箱。</li>
-              <li>左側選單點「<strong>憑證 (Credentials)</strong>」→「<strong>＋建立憑證 → OAuth 用戶端 ID</strong>」→ 應用程式類型選「<strong>網頁應用程式 (Web application)</strong>」。</li>
-              <li>在「<strong>已授權的 JavaScript 來源 (Authorized JavaScript origins)</strong>」點擊新增 URI，貼上下方這個網址：<br/>
-                <code id="currentOriginCode" class="origin-code"></code>
-                <button id="btnCopyOrigin" type="button" class="btn btn-xs btn-outline">複製目前來源網址</button>
-              </li>
-              <li>建立後複製產生的 <code>xxxx.apps.googleusercontent.com</code> 貼回上方欄位，即可永久一鍵同步！（若你將此專案放到自己的 GitHub Pages，也可把該 Client ID 寫進 <code>js/config.js</code> 供自己隨時免填使用。）</li>
-            </ol>
-          </details>
 
           <!-- 登入後顯示的子日曆選擇區 -->
           <div id="calendarSelectSection" class="calendar-select-section hidden">
             <div class="cal-section-header">
-              <strong>✅ 已連結 Google 帳號！請勾選要讀取的家教子日曆（例如：個人家教）：</strong>
+              <strong>✅ 已連結 Google 帳號！請勾選要讀取的家教子日曆：</strong>
               <div class="cal-section-btns">
-                <button id="btnRefreshCalendars" type="button" class="btn btn-xs btn-outline">🔄 重新整理清單</button>
+                <button id="btnSwitchGoogleAccount" type="button" class="btn btn-xs btn-outline">🔄 切換帳號</button>
+                <button id="btnRefreshCalendars" type="button" class="btn btn-xs btn-outline">重新整理清單</button>
                 <button id="btnGoogleSignOut" type="button" class="btn btn-xs btn-ghost">登出</button>
               </div>
             </div>
             <div id="calendarChecklist" class="calendar-checklist"></div>
             <div class="cal-sync-footer">
-              <button id="btnSyncSelectedCalendars" type="button" class="btn btn-primary">📥 立即抓取所選日曆的本月行程</button>
+              <button id="btnSyncSelectedCalendars" type="button" class="btn btn-primary btn-lg">📥 立即抓取所選日曆的本月行程</button>
             </div>
           </div>
         </div>
 
         <hr class="divider" />
 
-        <!-- 區塊 B：免設定 API 直接匯入 .ics 檔 -->
+        <!-- 區塊 B：免登入直接匯入 .ics 檔 -->
         <div class="setting-block">
           <div class="setting-block-title">
-            <span class="badge-step badge-alt">方式 2（免設定 API）</span>
-            <strong>直接匯入 Google 日曆 <code>.ics</code> 檔案</strong>
+            <span class="badge-step badge-alt">備用方式</span>
+            <strong>匯入 Google 日曆 <code>.ics</code> 檔案（免登入帳號）</strong>
           </div>
           <p class="field-hint">
-            不想設定 Client ID？在 Google 日曆左側對著「個人家教」日曆點「<strong>設定與共用 → 匯出日曆</strong>」，將解壓縮後的 <code>.ics</code> 檔選取匯入，系統同樣會自動展開每週固定課程與請假調課紀錄！
+            若不方便在公用電腦登入帳號，也可在 Google 日曆對著子日曆點「<strong>設定與共用 → 匯出日曆</strong>」，選取匯出的 <code>.ics</code> 檔直接載入。
           </p>
           <div class="ics-upload-row">
             <input id="inputIcsFile" type="file" accept=".ics,text/calendar" class="file-input" />
             <button id="btnTriggerDemoFromModal" type="button" class="btn btn-sm btn-ghost">✨ 或載入範例資料試玩</button>
           </div>
         </div>
+
+        <!-- 進階開發者選項（預設收合，一般使用者完全不需要點開） -->
+        <details class="oauth-guide" style="margin-top:18px">
+          <summary>🔧 進階選項：自訂 Google OAuth Client ID（一般使用者無須設定）</summary>
+          <p class="field-hint" style="margin-bottom:8px">
+            本站已內建預設登入金鑰。僅當你將此開源專案部署至自己的網域時，才需替換為自己的 Web Client ID（目前網域：<code id="currentOriginCode" class="origin-code"></code> <button id="btnCopyOrigin" type="button" class="btn btn-xs btn-outline">複製</button>）。
+          </p>
+          <div class="input-with-btn">
+            <input
+              id="inputGoogleClientId"
+              type="text"
+              class="text-input"
+              placeholder="留空即自動使用本站內建 Client ID"
+              autocomplete="off"
+            />
+            <button id="btnSaveAndLoginGoogle" type="button" class="btn btn-outline">套用並登入</button>
+          </div>
+        </details>
       </div>
     </div>
   </div>
@@ -2202,14 +2201,11 @@ body {
 /**
  * 家教學費與薪資自動結算工具 — 全域設定檔
  *
- * 【給部署到 GitHub Pages 的擁有者】
- * 如果你已經在 Google Cloud Console 建立好 OAuth 2.0 用戶端 ID (Web application)，
- * 可以直接填在下方 DEFAULT_GOOGLE_CLIENT_ID 字串中（Client ID 是公開識別碼，不含密鑰，可安全放入前端）。
- * 填好後，打開你 GitHub Pages 網址的使用者就不需要手動貼上 Client ID，直接點「Google 帳號一鍵登入」即可！
- * 若留空，使用者也可以直接在網頁右上角「⚙️ Google 同步設定」貼上自己的 Client ID（會自動記在瀏覽器本機）。
+ * DEFAULT_GOOGLE_CLIENT_ID 為公開的 OAuth 2.0 Web Client ID（不含任何密鑰，僅允許已授權網域發起唯讀行事曆授權）。
+ * 使用者打開網頁即可直接點擊「Google 帳號一鍵同步」登入自己的 Google 帳號，無須自行申請 API。
  */
 window.TUTORING_CALC_CONFIG = {
-  DEFAULT_GOOGLE_CLIENT_ID: '',
+  DEFAULT_GOOGLE_CLIENT_ID: '372434992433-h7q073opu3o3ukfkdvf4iepp8v85esd6.apps.googleusercontent.com',
   CALENDAR_SCOPE: 'https://www.googleapis.com/auth/calendar.readonly',
   STORAGE_KEY: 'gcal_tutoring_calc_v1',
   DEFAULT_EXCLUDE_KEYWORDS: ['請假', '停課', '取消'],
@@ -2230,8 +2226,20 @@ window.TUTORING_CALC_CONFIG = {
   'use strict';
 
   const RELEASES_DATA = {
-  "current_version": "1.0.0",
+  "current_version": "1.1.0",
   "releases": [
+    {
+      "version": "1.1.0",
+      "date": "2026-11-02",
+      "bump": "minor",
+      "title": "內建 Google 帳號一鍵直登授權與極簡日曆選取體驗",
+      "highlights": [
+        "🔗 內建網站專屬 OAuth Web Client ID：任何使用者打開網頁點「Google 帳號一鍵同步」即直接彈出 Google 帳號選擇視窗，免去手動申請或輸入 Client ID。",
+        "🗓️ 簡化「選擇家教日曆來源」彈跳視窗：登入後自動列出所有子日曆並優先預勾選名稱含「家教」的子日曆，亦支援一鍵切換其他 Google 帳號。",
+        "⚡ 預載 Google Identity Services 並保持點擊當下 0ms 同步喚起授權視窗，避免手機 Safari / Chrome 阻擋彈出視窗。"
+      ],
+      "files_count": 4
+    },
     {
       "version": "1.0.0",
       "date": "2026-11-02",
@@ -3189,17 +3197,29 @@ window.TUTORING_CALC_CONFIG = {
 
   let gisLoadPromise = null;
 
+  function isGisReady() {
+    return Boolean(window.google && window.google.accounts && window.google.accounts.oauth2);
+  }
+
   function ensureGisLoaded() {
-    if (window.google && window.google.accounts && window.google.accounts.oauth2) {
-      return Promise.resolve();
-    }
+    if (isGisReady()) return Promise.resolve();
     if (gisLoadPromise) return gisLoadPromise;
 
     gisLoadPromise = new Promise((resolve, reject) => {
       const existing = document.querySelector(`script[src="${GIS_SRC}"]`);
       if (existing) {
-        existing.addEventListener('load', () => resolve());
-        existing.addEventListener('error', () => reject(new Error('無法載入 Google 登入元件，請檢查網路連線或廣告阻擋器。')));
+        const timer = setInterval(() => {
+          if (isGisReady()) {
+            clearInterval(timer);
+            resolve();
+          }
+        }, 80);
+        existing.addEventListener('load', () => { clearInterval(timer); resolve(); });
+        existing.addEventListener('error', () => {
+          clearInterval(timer);
+          gisLoadPromise = null;
+          reject(new Error('無法載入 Google 登入元件，請檢查網路連線或廣告阻擋器。'));
+        });
         return;
       }
       const script = document.createElement('script');
@@ -3222,7 +3242,6 @@ window.TUTORING_CALC_CONFIG = {
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (!parsed.accessToken || parsed.clientId !== clientId) return null;
-      // 預留 60 秒緩衝
       if (Date.now() >= (parsed.expiresAt - 60000)) {
         sessionStorage.removeItem(SESSION_TOKEN_KEY);
         return null;
@@ -3252,26 +3271,21 @@ window.TUTORING_CALC_CONFIG = {
     } catch (_) {}
   }
 
-  /**
-   * 觸發 Google 帳號一鍵授權視窗，取得唯讀 Access Token
-   */
-  async function signInWithGoogle(clientId, forceAccountSelect = false) {
-    const trimmedId = String(clientId || '').trim();
-    if (!trimmedId) {
-      throw new Error('尚未設定 Google OAuth Client ID，請先在「Google 同步設定」填入 Client ID。');
-    }
-    await ensureGisLoaded();
-
+  function openTokenPopupSync(trimmedId, forceAccountSelect) {
     return new Promise((resolve, reject) => {
       let settled = false;
       const tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: trimmedId,
         scope: window.TUTORING_CALC_CONFIG.CALENDAR_SCOPE,
-        callback: async (resp) => {
+        callback: (resp) => {
           if (settled) return;
           settled = true;
           if (resp.error) {
-            reject(new Error(`Google 授權失敗：${resp.error_description || resp.error}`));
+            if (resp.error === 'access_denied') {
+              reject(new Error('Google 授權未完成（若出現測試模式限制，請於 Google Cloud OAuth 同意畫面點「發布應用程式 Publish App」）。'));
+            } else {
+              reject(new Error(`Google 授權失敗：${resp.error_description || resp.error}`));
+            }
             return;
           }
           const rec = saveToken(trimmedId, resp.access_token, resp.expires_in, '');
@@ -3282,7 +3296,7 @@ window.TUTORING_CALC_CONFIG = {
           settled = true;
           const msg = err && err.type === 'popup_closed'
             ? '已關閉 Google 登入視窗'
-            : `Google 登入視窗無法開啟 (${(err && err.type) || 'unknown'})，請確認瀏覽器未封鎖彈出視窗。`;
+            : `無法開啟 Google 登入視窗 (${(err && err.type) || 'popup_blocked'})，請允許此網頁開啟彈出視窗或改用標準瀏覽器開啟。`;
           reject(new Error(msg));
         }
       });
@@ -3291,6 +3305,20 @@ window.TUTORING_CALC_CONFIG = {
         prompt: forceAccountSelect ? 'select_account' : ''
       });
     });
+  }
+
+  /**
+   * 觸發 Google 帳號一鍵授權視窗（當 GIS 已預載時保持 0ms 同步呼叫，避免手機 Safari 阻擋彈窗）
+   */
+  function signInWithGoogle(clientId, forceAccountSelect = false) {
+    const trimmedId = String(clientId || '').trim();
+    if (!trimmedId) {
+      return Promise.reject(new Error('尚未設定 Google OAuth Client ID。'));
+    }
+    if (isGisReady()) {
+      return openTokenPopupSync(trimmedId, forceAccountSelect);
+    }
+    return ensureGisLoaded().then(() => openTokenPopupSync(trimmedId, forceAccountSelect));
   }
 
   async function gcalFetchJson(url, accessToken) {
@@ -3309,8 +3337,8 @@ window.TUTORING_CALC_CONFIG = {
       if (resp.status === 401) clearToken();
       throw new Error(
         resp.status === 401
-          ? 'Google 登入授權已過期，請重新點擊「連結 Google 日曆」登入。'
-          : `Google Calendar API 拒絕存取 (403)：請確認該專案已啟用 Google Calendar API。${detail ? ' (' + detail + ')' : ''}`
+          ? 'Google 登入授權已過期，請重新點擊「Google 帳號一鍵同步」登入。'
+          : `Google Calendar API 拒絕存取 (403)：${detail || '請確認授權時已勾選查看日曆權限。'}`
       );
     }
     if (!resp.ok) {
@@ -3323,13 +3351,15 @@ window.TUTORING_CALC_CONFIG = {
    * 取得使用者帳號下所有子日曆清單（例如「個人家教」、主日曆等）
    */
   async function fetchCalendarList(accessToken) {
-    const url = 'https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader&maxResults=250';
-    const data = await gcalFetchJson(url, accessToken);
+    const url = 'https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader&maxAccessRole=owner&maxResults=250';
+    // 注意：Google API 不接受同時傳 min/maxAccessRole 衝突，僅傳 minAccessRole=reader 即可取得所有可讀日曆
+    const cleanUrl = 'https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader&maxResults=250';
+    void url;
+    const data = await gcalFetchJson(cleanUrl, accessToken);
     const items = Array.isArray(data.items) ? data.items : [];
 
-    // 智慧排序：名稱含「家教 / 課 / 教學 / 學生」優先排最上面，其次為主日曆，節假日排最後
     const scoreCal = (c) => {
-      const name = String(c.summary || '');
+      const name = String(c.summaryOverride || c.summary || '');
       if (/(家教|課|教學|音樂|鋼琴|提琴|學生|tutor|lesson)/i.test(name)) return 0;
       if (c.primary) return 1;
       if (String(c.id || '').includes('#holiday@') || String(c.id || '').includes('#contacts@')) return 9;
@@ -3352,15 +3382,11 @@ window.TUTORING_CALC_CONFIG = {
     return String(n).padStart(2, '0');
   }
 
-  /**
-   * 將單筆 Google Calendar API Event 正規化為本地時間結構
-   */
   function normalizeApiEvent(ev, calendarId, calendarName) {
     if (!ev || ev.status === 'cancelled') return null;
     const title = String(ev.summary || '').trim();
     if (!title) return null;
 
-    // 若使用者自己在參加者名單中且已明確按「拒絕 (declined)」，則跳過
     if (Array.isArray(ev.attendees)) {
       const selfAtt = ev.attendees.find((a) => a && a.self);
       if (selfAtt && selfAtt.responseStatus === 'declined') return null;
@@ -3377,7 +3403,6 @@ window.TUTORING_CALC_CONFIG = {
     let sortTs = 0;
 
     if (isAllDay) {
-      // ev.start.date 格式為 YYYY-MM-DD
       dateStr = ev.start.date;
       const parts = dateStr.split('-').map(Number);
       year = parts[0];
@@ -3427,15 +3452,11 @@ window.TUTORING_CALC_CONFIG = {
     };
   }
 
-  /**
-   * 抓取指定年、月、多個子日曆的所有展開後行程 (singleEvents=true)
-   */
   async function fetchMonthEvents(accessToken, calendars, year, month) {
     if (!Array.isArray(calendars) || calendars.length === 0) {
       throw new Error('請至少勾選一個要讀取的 Google 子日曆（例如：個人家教）。');
     }
 
-    // 本地時區當月 1 日 00:00:00 至次月 1 日 00:00:00
     const startLocal = new Date(year, month - 1, 1, 0, 0, 0, 0);
     const endLocal = new Date(year, month, 1, 0, 0, 0, 0);
     const timeMin = startLocal.toISOString();
@@ -3463,7 +3484,6 @@ window.TUTORING_CALC_CONFIG = {
 
         for (const ev of items) {
           const norm = normalizeApiEvent(ev, calId, calName);
-          // 確保跨日或時區邊界只計入當月開始的課堂
           if (norm && norm.year === year && norm.month === month) {
             allEvents.push(norm);
           }
@@ -3477,6 +3497,7 @@ window.TUTORING_CALC_CONFIG = {
   }
 
   window.GoogleCalendarSync = {
+    ensureGisLoaded,
     getSavedToken,
     clearToken,
     signInWithGoogle,
@@ -4315,7 +4336,7 @@ window.TUTORING_CALC_CONFIG = {
     const badge = document.getElementById('syncStatusBadge');
     const txt = document.getElementById('syncStatusText');
     const btnLabel = document.getElementById('btnGoogleSignInLabel');
-    const tokenRec = window.GoogleCalendarSync.getSavedToken(state.clientId);
+    const tokenRec = window.GoogleCalendarSync.getSavedToken(getActiveClientId());
 
     const calNames = (state.selectedCalendars || []).map((c) => c.summary).join('、');
     if (tokenRec && calNames) {
@@ -4805,29 +4826,38 @@ window.TUTORING_CALC_CONFIG = {
     if (el) el.classList.add('hidden');
   }
 
+  function getActiveClientId() {
+    return String(state.clientId || CFG.DEFAULT_GOOGLE_CLIENT_ID || '').trim();
+  }
+
   function openSyncSettingsModal() {
-    document.getElementById('inputGoogleClientId').value = state.clientId || '';
+    const customId = (state.clientId && state.clientId !== CFG.DEFAULT_GOOGLE_CLIENT_ID) ? state.clientId : '';
+    document.getElementById('inputGoogleClientId').value = customId;
     document.getElementById('currentOriginCode').textContent = window.location.origin;
     renderCalendarChecklistInModal();
     openModal('syncModal');
   }
 
   function renderCalendarChecklistInModal() {
+    const notSignedInBox = document.getElementById('googleNotSignedInBox');
     const sec = document.getElementById('calendarSelectSection');
     const listEl = document.getElementById('calendarChecklist');
-    const tokenRec = window.GoogleCalendarSync.getSavedToken(state.clientId);
+    const tokenRec = window.GoogleCalendarSync.getSavedToken(getActiveClientId());
+    const hasCals = Boolean(state.cachedCalendars && state.cachedCalendars.length > 0);
 
-    if (!tokenRec && (!state.cachedCalendars || state.cachedCalendars.length === 0)) {
+    if (!tokenRec && !hasCals) {
+      if (notSignedInBox) notSignedInBox.classList.remove('hidden');
       sec.classList.add('hidden');
       return;
     }
+    if (notSignedInBox) notSignedInBox.classList.add('hidden');
     sec.classList.remove('hidden');
 
     const selectedSet = new Set((state.selectedCalendars || []).map((c) => c.id));
     const cals = state.cachedCalendars || [];
 
     if (cals.length === 0) {
-      listEl.innerHTML = `<div class="field-hint">正在讀取日曆清單，請點「🔄 重新整理清單」...</div>`;
+      listEl.innerHTML = `<div class="field-hint">正在讀取日曆清單，請點「重新整理清單」...</div>`;
       return;
     }
 
@@ -4844,34 +4874,40 @@ window.TUTORING_CALC_CONFIG = {
     }).join('');
   }
 
-  async function handleGoogleLoginAndSync(forceOpenModalIfNoCal = true) {
-    if (!state.clientId) {
+  async function handleGoogleLoginAndSync(forceChooseCalendarOnFirstTime = true, forceAccountSelect = false) {
+    const cid = getActiveClientId();
+    if (!cid) {
       openSyncSettingsModal();
-      showToast('請先填入 Google OAuth Client ID（內附 2 分鐘取得步驟）或直接匯入 .ics 日曆檔！', 'info');
+      showToast('尚未設定 Google Client ID，可先使用 .ics 日曆匯入。', 'info');
       return;
     }
 
     try {
-      let tokenRec = window.GoogleCalendarSync.getSavedToken(state.clientId);
+      let tokenRec = forceAccountSelect ? null : window.GoogleCalendarSync.getSavedToken(cid);
       if (!tokenRec) {
-        tokenRec = await window.GoogleCalendarSync.signInWithGoogle(state.clientId, false);
+        // 保持在點擊手勢當下同步呼叫 signInWithGoogle，避免手機瀏覽器阻擋彈窗
+        tokenRec = await window.GoogleCalendarSync.signInWithGoogle(cid, forceAccountSelect);
       }
 
-      // 取得子日曆清單
       const cals = await window.GoogleCalendarSync.fetchCalendarList(tokenRec.accessToken);
       state.cachedCalendars = cals;
 
-      // 若尚未選擇過任何子日曆，智慧預選名稱含「家教」的子日曆，否則開啟清單讓使用者勾選
-      if (!state.selectedCalendars || state.selectedCalendars.length === 0) {
+      const isFirstTimeSelect = !state.selectedCalendars || state.selectedCalendars.length === 0;
+      if (isFirstTimeSelect) {
         const autoTutorCals = cals.filter((c) => /家教/.test(c.summary));
         if (autoTutorCals.length > 0) {
           state.selectedCalendars = autoTutorCals.map((c) => ({ id: c.id, summary: c.summary }));
-          saveState();
-        } else if (forceOpenModalIfNoCal) {
-          saveState();
+        } else {
+          const primaryCal = cals.find((c) => c.primary);
+          if (primaryCal) state.selectedCalendars = [{ id: primaryCal.id, summary: primaryCal.summary }];
+        }
+        saveState();
+
+        // 初次連結時若有多個子日曆，打開日曆選擇視窗讓使用者確認要抓哪幾個子日曆（已智慧預勾選）
+        if (forceChooseCalendarOnFirstTime && cals.length > 1) {
           openSyncSettingsModal();
-          showToast('登入成功！請勾選你要讀取的家教子日曆（例如：個人家教）。', 'info');
           renderSyncStatus();
+          showToast('已登入 Google！請確認勾選的家教子日曆，再點「立即抓取」。', 'success');
           return;
         }
       }
@@ -4885,7 +4921,8 @@ window.TUTORING_CALC_CONFIG = {
   }
 
   async function syncActiveMonthFromGoogle(existingAccessToken = '') {
-    if (!state.clientId) {
+    const cid = getActiveClientId();
+    if (!cid) {
       openSyncSettingsModal();
       return;
     }
@@ -4903,9 +4940,9 @@ window.TUTORING_CALC_CONFIG = {
     try {
       let accessToken = existingAccessToken;
       if (!accessToken) {
-        let tokenRec = window.GoogleCalendarSync.getSavedToken(state.clientId);
+        let tokenRec = window.GoogleCalendarSync.getSavedToken(cid);
         if (!tokenRec) {
-          tokenRec = await window.GoogleCalendarSync.signInWithGoogle(state.clientId, false);
+          tokenRec = await window.GoogleCalendarSync.signInWithGoogle(cid, false);
         }
         accessToken = tokenRec.accessToken;
       }
@@ -4947,7 +4984,7 @@ window.TUTORING_CALC_CONFIG = {
     renderAll();
 
     const ym = ymKey(y, m);
-    const tokenRec = window.GoogleCalendarSync.getSavedToken(state.clientId);
+    const tokenRec = window.GoogleCalendarSync.getSavedToken(getActiveClientId());
     if (tokenRec && state.selectedCalendars.length > 0 && !state.eventsByMonth[ym] && !state.isDemoMode) {
       await syncActiveMonthFromGoogle(tokenRec.accessToken);
     }
@@ -5087,43 +5124,36 @@ window.TUTORING_CALC_CONFIG = {
     document.getElementById('btnSyncCurrentMonth').addEventListener('click', () => syncActiveMonthFromGoogle());
 
     // Sync Modal 內操作
+    document.getElementById('btnModalDirectGoogleLogin').addEventListener('click', () => {
+      handleGoogleLoginAndSync(true, true);
+    });
+
+    document.getElementById('btnSwitchGoogleAccount').addEventListener('click', () => {
+      state.selectedCalendars = [];
+      state.cachedCalendars = [];
+      window.GoogleCalendarSync.clearToken();
+      saveState();
+      handleGoogleLoginAndSync(true, true);
+    });
+
     document.getElementById('btnCopyOrigin').addEventListener('click', () => {
       copyTextToClipboard(window.location.origin, `已複製來源網址：${window.location.origin}`);
     });
 
     document.getElementById('btnSaveAndLoginGoogle').addEventListener('click', async () => {
-      const cid = document.getElementById('inputGoogleClientId').value.trim();
-      if (!cid) {
-        showToast('請先貼上 Google OAuth Client ID', 'error');
-        return;
-      }
-      state.clientId = cid;
+      const customCid = document.getElementById('inputGoogleClientId').value.trim();
+      state.clientId = customCid || CFG.DEFAULT_GOOGLE_CLIENT_ID;
+      state.selectedCalendars = [];
       window.GoogleCalendarSync.clearToken();
       saveState();
-      try {
-        const tokenRec = await window.GoogleCalendarSync.signInWithGoogle(cid, true);
-        const cals = await window.GoogleCalendarSync.fetchCalendarList(tokenRec.accessToken);
-        state.cachedCalendars = cals;
-        // 智慧預選名稱含「家教」的子日曆
-        if (state.selectedCalendars.length === 0) {
-          const tutorCals = cals.filter((c) => /家教/.test(c.summary));
-          if (tutorCals.length > 0) {
-            state.selectedCalendars = tutorCals.map((c) => ({ id: c.id, summary: c.summary }));
-          }
-        }
-        saveState();
-        renderCalendarChecklistInModal();
-        renderSyncStatus();
-        showToast('成功連結 Google 帳號！請確認下方勾選的子日曆並點「立即抓取」。', 'success');
-      } catch (err) {
-        showToast(err.message || 'Google 登入失敗', 'error');
-      }
+      await handleGoogleLoginAndSync(true, true);
     });
 
     document.getElementById('btnRefreshCalendars').addEventListener('click', async () => {
       try {
-        let tokenRec = window.GoogleCalendarSync.getSavedToken(state.clientId);
-        if (!tokenRec) tokenRec = await window.GoogleCalendarSync.signInWithGoogle(state.clientId, false);
+        const cid = getActiveClientId();
+        let tokenRec = window.GoogleCalendarSync.getSavedToken(cid);
+        if (!tokenRec) tokenRec = await window.GoogleCalendarSync.signInWithGoogle(cid, false);
         state.cachedCalendars = await window.GoogleCalendarSync.fetchCalendarList(tokenRec.accessToken);
         saveState();
         renderCalendarChecklistInModal();
@@ -5135,6 +5165,8 @@ window.TUTORING_CALC_CONFIG = {
 
     document.getElementById('btnGoogleSignOut').addEventListener('click', () => {
       window.GoogleCalendarSync.clearToken();
+      state.cachedCalendars = [];
+      saveState();
       renderCalendarChecklistInModal();
       renderSyncStatus();
       showToast('已登出 Google 授權工作階段', 'info');
