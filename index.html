@@ -584,6 +584,15 @@ body {
   flex-wrap: wrap;
 }
 
+.unmatched-rate-input {
+  width: 196px !important;
+  padding: 5px 10px !important;
+}
+
+.unmatched-merge-select {
+  min-width: 156px;
+}
+
 /* --- 視圖切換頁籤列 --- */
 .view-tabs-bar {
   display: flex;
@@ -693,7 +702,7 @@ body {
 
 .summary-sheet-table .col-idx { width: 38px; text-align: center; }
 .summary-sheet-table .col-sessions { width: 58px; text-align: center; }
-.summary-sheet-table .col-rate-quick { width: 138px; }
+.summary-sheet-table .col-rate-quick { width: 158px; }
 .summary-sheet-table .col-total { width: 105px; text-align: right; }
 .summary-sheet-table .col-paid { width: 52px; text-align: center; }
 
@@ -745,8 +754,8 @@ body {
 
 .quick-rate-input,
 .inline-rate-input {
-  width: 84px;
-  padding: 4px 7px;
+  width: 108px;
+  padding: 5px 8px;
   border: 1px solid var(--border-strong);
   border-radius: 5px;
   font-size: 13px;
@@ -754,6 +763,20 @@ body {
   text-align: right;
   font-family: inherit;
   font-variant-numeric: tabular-nums;
+}
+
+.quick-rate-input:placeholder-shown,
+.inline-rate-input:placeholder-shown {
+  text-align: left;
+  font-weight: 500;
+}
+
+.stu-base-rate-input {
+  width: 128px;
+}
+
+.cfg-rate-input {
+  width: 114px;
 }
 
 .quick-rate-input:focus,
@@ -1784,7 +1807,6 @@ body {
               <span>v1.0.0</span>
             </button>
           </div>
-          <p class="brand-subtitle">Google 行事曆自動帶入上課日期 · 分月計算學生明細與薪資總表</p>
         </div>
       </div>
 
@@ -1996,12 +2018,10 @@ body {
         <table class="students-config-table">
           <thead>
             <tr>
-              <th>明細顯示學生名</th>
-              <th>課程名稱（明細標題用）</th>
-              <th>日曆比對關鍵字（逗號分隔）</th>
-              <th>計費方式</th>
-              <th>鐘點費 (NT$)</th>
-              <th>家庭／總表合併名稱（選填）</th>
+              <th>學生</th>
+              <th>課程</th>
+              <th>鐘點費</th>
+              <th>家庭（選填）</th>
               <th>家庭明細呈現方式</th>
               <th>操作</th>
             </tr>
@@ -2226,8 +2246,30 @@ window.TUTORING_CALC_CONFIG = {
   'use strict';
 
   const RELEASES_DATA = {
-  "current_version": "1.1.0",
+  "current_version": "1.1.2",
   "releases": [
+    {
+      "version": "1.1.2",
+      "date": "2026-11-02",
+      "bump": "patch",
+      "title": "更新頁面骨架、結算引擎（共 2 個檔案）",
+      "highlights": [
+        "[頁面骨架] 內容修改 index.html：主網頁介面結構、頂部導覽、版號徽章與設定彈跳視窗（+4 / -7 行）",
+        "[結算引擎] 內容修改 js/app.js：學生關鍵字智慧歸戶、單堂／時長計費、家庭合併雙模式與分月結算（+3 / -13 行）"
+      ],
+      "files_count": 2
+    },
+    {
+      "version": "1.1.1",
+      "date": "2026-11-02",
+      "bump": "patch",
+      "title": "修正「填入鐘點費」等輸入框寬度與提示字截斷問題",
+      "highlights": [
+        "加寬未歸戶行程「填入鐘點費 (如 1000)」輸入框至 196px，完整呈現提示文字不再截斷",
+        "同步加寬總表、學生明細列與規則設定表的鐘點費輸入框，並於未填寫時自動靠左顯示提示字、輸入數字後自動靠右對齊"
+      ],
+      "files_count": 2
+    },
     {
       "version": "1.1.0",
       "date": "2026-11-02",
@@ -4349,7 +4391,7 @@ window.TUTORING_CALC_CONFIG = {
       btnLabel.textContent = '選擇家教日曆';
     } else if (calNames) {
       badge.className = 'sync-badge partial';
-      txt.textContent = `日曆：${calNames}（點右側重新同步）`;
+      txt.textContent = `日曆：${calNames}`;
       btnLabel.textContent = 'Google 帳號一鍵同步';
     } else {
       badge.className = 'sync-badge disconnected';
@@ -4758,7 +4800,7 @@ window.TUTORING_CALC_CONFIG = {
     if (state.students.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="8" class="empty-cell">尚未建立任何學生規則。你可以先同步 Google 日曆自動偵測，或點右上角「➕ 新增學生」手動建立。</td>
+          <td colspan="6" class="empty-cell">尚未建立任何學生規則。你可以先同步 Google 日曆自動偵測，或點右上角「➕ 新增學生」手動建立。</td>
         </tr>
       `;
     } else {
@@ -4766,17 +4808,6 @@ window.TUTORING_CALC_CONFIG = {
         <tr data-stu-id="${escHtml(s.id)}">
           <td><strong>${escHtml(s.name)}</strong>${s.summaryLabel && s.summaryLabel !== s.name ? `<div class="sub-hint">總表簡稱：${escHtml(s.summaryLabel)}</div>` : ''}</td>
           <td>${escHtml(s.courseName || '—')}</td>
-          <td>
-            <div class="kw-tags">
-              ${(s.keywords || []).map((k) => `<span class="kw-tag">${escHtml(k)}</span>`).join('')}
-            </div>
-          </td>
-          <td>
-            <select class="select-xs cfg-mode-select" data-stu-id="${escHtml(s.id)}">
-              <option value="per_session" ${s.pricingMode === 'per_session' ? 'selected' : ''}>每堂固定金額</option>
-              <option value="by_duration" ${s.pricingMode === 'by_duration' ? 'selected' : ''}>依 60m 時長換算</option>
-            </select>
-          </td>
           <td>
             <input type="number" min="0" step="50" class="inline-rate-input cfg-rate-input" data-stu-id="${escHtml(s.id)}" value="${s.rate === '' || s.rate == null ? '' : escHtml(s.rate)}" placeholder="填金額" />
           </td>
@@ -5625,10 +5656,11 @@ window.TUTORING_CALC_CONFIG = {
       const id = document.getElementById('stuFormId').value;
       const name = document.getElementById('stuFormName').value.trim();
       const courseName = document.getElementById('stuFormCourse').value.trim();
-      const keywords = document.getElementById('stuFormKeywords').value
+      const rawKeywords = document.getElementById('stuFormKeywords').value
         .split(/[,，、]/)
         .map((k) => k.trim())
         .filter(Boolean);
+      const keywords = rawKeywords.length > 0 ? rawKeywords : (name ? [name] : []);
       const pricingMode = document.getElementById('stuFormPricingMode').value;
       const rateVal = document.getElementById('stuFormRate').value;
       const groupName = document.getElementById('stuFormGroup').value.trim();
